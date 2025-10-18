@@ -128,15 +128,14 @@ const paymentModel = {
     return result.rows;
   },
 
-  // Update payment status
+  // Update payment status (FIXED - removed updated_at)
   async updateStatus(id, status, staffId, notes = null) {
     const query = `
       UPDATE payments 
       SET 
         payment_status = $1,
         received_by = $2,
-        notes = COALESCE($3, notes),
-        updated_at = CURRENT_TIMESTAMP
+        notes = COALESCE($3, notes)
       WHERE id = $4
       RETURNING *
     `;

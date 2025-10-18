@@ -66,9 +66,11 @@ const paymentController = {
 
       // If cash payment, mark as completed immediately
       if (payment_method === 'cash') {
-        // Check if fully paid and update booking status
-        const isFullyPaid = await paymentModel.isFullyPaid(reservation_id);
-        if (isFullyPaid && booking.status === 'pending_payment') {
+        // Check if deposit paid or fully paid, then confirm booking
+        const newTotalPaid = totalPaid + parseFloat(amount);
+        const depositAmount = parseFloat(booking.deposit_amount);
+        
+        if (newTotalPaid >= depositAmount && booking.status === 'pending_payment') {
           await bookingModel.updateStatus(reservation_id, 'confirmed');
         }
       }
@@ -114,6 +116,7 @@ const paymentController = {
         success: true,
         booking_reference: booking.booking_reference,
         total_amount: booking.total_amount,
+        deposit_amount: booking.deposit_amount,
         total_paid: totalPaid,
         remaining_balance: remainingBalance,
         is_fully_paid: remainingBalance <= 0,
@@ -125,7 +128,7 @@ const paymentController = {
     }
   },
 
-  // Verify GCash payment (admin/staff only)
+  // Verify GCash payment (admin/staff only) - FIXED
   async verifyPayment(req, res) {
     try {
       const staffId = req.user.id;
@@ -146,12 +149,14 @@ const paymentController = {
       // Update payment status
       const updatedPayment = await paymentModel.updateStatus(id, status, staffId, notes);
 
-      // If payment verified/completed, check if booking is fully paid
+      // If payment verified/completed, check if booking should be confirmed
       if (status === 'verified' || status === 'completed') {
-        const isFullyPaid = await paymentModel.isFullyPaid(payment.reservation_id);
-        
         const booking = await bookingModel.findById(payment.reservation_id);
-        if (isFullyPaid && booking.status === 'pending_payment') {
+        const totalPaid = await paymentModel.getTotalPaid(payment.reservation_id);
+        const depositAmount = parseFloat(booking.deposit_amount);
+        
+        // Confirm booking if deposit is paid
+        if (totalPaid >= depositAmount && booking.status === 'pending_payment') {
           await bookingModel.updateStatus(payment.reservation_id, 'confirmed');
         }
       }
