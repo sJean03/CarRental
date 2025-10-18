@@ -1,7 +1,11 @@
 -- ============================================
 -- RENTEASE PHILIPPINES DATABASE SCHEMA
+-- Updated: October 18, 2025
 -- Model: Traditional Fleet + Leased Vehicles
 -- Payment: Cash & GCash Only
+-- Owner Payment: PERCENTAGE SHARE (Primary)
+-- Deposits: 20% Required
+-- Late Fees: Hourly Rate
 -- ============================================
 
 -- Enable UUID extension
@@ -92,7 +96,7 @@ CREATE TABLE vehicle_owners (
     contract_start_date DATE,
     contract_end_date DATE,
     contract_status contract_status DEFAULT 'active',
-    payment_type owner_payment_type NOT NULL,
+    payment_type owner_payment_type NOT NULL DEFAULT 'percentage_based',
     fixed_monthly_amount DECIMAL(10,2),
     percentage_share DECIMAL(5,2),
     total_earned DECIMAL(12,2) DEFAULT 0,
@@ -125,6 +129,7 @@ CREATE TABLE vehicles (
     seating_capacity INT NOT NULL,
     current_mileage INT DEFAULT 0,
     daily_rate DECIMAL(10,2) NOT NULL,
+    hourly_late_fee DECIMAL(10,2) DEFAULT 200.00,
     status vehicle_status DEFAULT 'available',
     current_location_id UUID REFERENCES locations(id),
     home_location_id UUID REFERENCES locations(id),
@@ -160,6 +165,7 @@ CREATE TABLE reservations (
     status reservation_status DEFAULT 'pending_payment',
     base_amount DECIMAL(10,2) NOT NULL,
     insurance_amount DECIMAL(10,2) DEFAULT 0,
+    deposit_amount DECIMAL(10,2) NOT NULL,
     total_amount DECIMAL(10,2) NOT NULL,
     booking_comments TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -204,6 +210,7 @@ CREATE TABLE rentals (
     damage_photos TEXT[],
     checked_in_by UUID REFERENCES users(id),
     checked_out_by UUID REFERENCES users(id),
+    hours_late INT DEFAULT 0,
     late_return_fee DECIMAL(10,2) DEFAULT 0,
     fuel_charge DECIMAL(10,2) DEFAULT 0,
     cleaning_fee DECIMAL(10,2) DEFAULT 0,
@@ -375,6 +382,19 @@ CREATE SEQUENCE booking_ref_seq START 1;
 CREATE TRIGGER generate_booking_ref BEFORE INSERT ON reservations
     FOR EACH ROW EXECUTE FUNCTION generate_booking_reference();
 
+-- Function to calculate 20% deposit
+CREATE OR REPLACE FUNCTION calculate_deposit()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.deposit_amount := ROUND(NEW.total_amount * 0.20, 2);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply trigger for deposit calculation
+CREATE TRIGGER calculate_deposit_trigger BEFORE INSERT ON reservations
+    FOR EACH ROW EXECUTE FUNCTION calculate_deposit();
+
 -- Function to calculate additional charges
 CREATE OR REPLACE FUNCTION calculate_additional_charges()
 RETURNS TRIGGER AS $$
@@ -391,6 +411,29 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER calculate_charges BEFORE INSERT OR UPDATE ON rentals
     FOR EACH ROW EXECUTE FUNCTION calculate_additional_charges();
 
+-- Function to calculate hourly late fee
+CREATE OR REPLACE FUNCTION calculate_late_fee()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_hourly_rate DECIMAL(10,2);
+BEGIN
+    IF NEW.actual_dropoff_date IS NOT NULL AND NEW.hours_late > 0 THEN
+        -- Get hourly late fee rate from vehicle
+        SELECT hourly_late_fee INTO v_hourly_rate
+        FROM vehicles v
+        JOIN reservations r ON r.vehicle_id = v.id
+        WHERE r.id = NEW.reservation_id;
+        
+        NEW.late_return_fee := NEW.hours_late * v_hourly_rate;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply trigger for late fee calculation
+CREATE TRIGGER calculate_late_fee_trigger BEFORE INSERT OR UPDATE ON rentals
+    FOR EACH ROW EXECUTE FUNCTION calculate_late_fee();
+
 -- ============================================
 -- SAMPLE DATA INSERTS
 -- ============================================
@@ -400,11 +443,11 @@ INSERT INTO users (email, password_hash, first_name, last_name, role) VALUES
 ('admin@rentease.ph', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Admin', 'RentEase', 'admin'),
 ('staff@rentease.ph', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Staff', 'Member', 'staff');
 
--- Insert locations/branches
+-- Insert locations/branches (Manila, Makati, QC)
 INSERT INTO locations (name, address, city, province, phone_number, email, opening_hours) VALUES
 ('Manila Branch', '123 Rizal Avenue, Ermita', 'Manila', 'Metro Manila', '(02) 8123-4567', 'manila@rentease.ph', 'Mon-Sat: 8:00 AM - 6:00 PM'),
-('Quezon City Branch', '456 Commonwealth Avenue, Diliman', 'Quezon City', 'Metro Manila', '(02) 8234-5678', 'qc@rentease.ph', 'Mon-Sun: 7:00 AM - 7:00 PM'),
-('Makati Branch', '789 Ayala Avenue, Makati CBD', 'Makati', 'Metro Manila', '(02) 8345-6789', 'makati@rentease.ph', 'Mon-Fri: 8:00 AM - 8:00 PM, Sat-Sun: 9:00 AM - 5:00 PM');
+('Makati Branch', '789 Ayala Avenue, Makati CBD', 'Makati', 'Metro Manila', '(02) 8345-6789', 'makati@rentease.ph', 'Mon-Fri: 8:00 AM - 8:00 PM, Sat-Sun: 9:00 AM - 5:00 PM'),
+('Quezon City Branch', '456 Commonwealth Avenue, Diliman', 'Quezon City', 'Metro Manila', '(02) 8234-5678', 'qc@rentease.ph', 'Mon-Sun: 7:00 AM - 7:00 PM');
 
 -- Insert vehicle categories
 INSERT INTO vehicle_categories (name, description) VALUES
@@ -420,16 +463,13 @@ INSERT INTO insurance_plans (name, description, coverage_amount, daily_rate, is_
 ('Premium Insurance', 'Comprehensive coverage including full damage protection', 1000000.00, 500.00, true),
 ('No Insurance', 'Rent at your own risk', 0.00, 0.00, true);
 
--- Insert sample vehicle owner
+-- Insert sample vehicle owners (PERCENTAGE-BASED as primary model)
 INSERT INTO vehicle_owners (first_name, last_name, email, phone_number, address, gcash_number, contract_start_date, contract_end_date, contract_status, payment_type, percentage_share) VALUES
 ('Maria', 'Santos', 'maria.santos@email.com', '0917-123-4567', '123 Rizal Street, Manila', '0917-123-4567', '2024-01-01', '2025-12-31', 'active', 'percentage_based', 60.00),
-('Juan', 'Reyes', 'juan.reyes@email.com', '0918-234-5678', '456 Luna Street, Quezon City', '0918-234-5678', '2023-06-01', '2026-05-31', 'active', 'fixed_monthly', NULL);
+('Juan', 'Reyes', 'juan.reyes@email.com', '0918-234-5678', '456 Luna Street, Quezon City', '0918-234-5678', '2023-06-01', '2026-05-31', 'active', 'percentage_based', 65.00);
 
--- Update fixed monthly amount for Juan Reyes
-UPDATE vehicle_owners SET fixed_monthly_amount = 15000.00 WHERE email = 'juan.reyes@email.com';
-
--- Insert sample vehicles
-INSERT INTO vehicles (owner_id, ownership_type, vehicle_identification_number, make, model, year, color, license_plate, category_id, transmission_type, fuel_type, seating_capacity, current_mileage, daily_rate, status, current_location_id, home_location_id, is_tracked) 
+-- Insert sample vehicles with hourly late fee
+INSERT INTO vehicles (owner_id, ownership_type, vehicle_identification_number, make, model, year, color, license_plate, category_id, transmission_type, fuel_type, seating_capacity, current_mileage, daily_rate, hourly_late_fee, status, current_location_id, home_location_id, is_tracked) 
 SELECT 
     (SELECT id FROM vehicle_owners WHERE email = 'maria.santos@email.com'),
     'leased_from_owner',
@@ -445,12 +485,13 @@ SELECT
     5,
     45230,
     2500.00,
+    200.00,
     'available',
     (SELECT id FROM locations WHERE name = 'Manila Branch'),
     (SELECT id FROM locations WHERE name = 'Manila Branch'),
     true;
 
-INSERT INTO vehicles (ownership_type, vehicle_identification_number, make, model, year, color, license_plate, category_id, transmission_type, fuel_type, seating_capacity, current_mileage, daily_rate, status, current_location_id, home_location_id) 
+INSERT INTO vehicles (ownership_type, vehicle_identification_number, make, model, year, color, license_plate, category_id, transmission_type, fuel_type, seating_capacity, current_mileage, daily_rate, hourly_late_fee, status, current_location_id, home_location_id) 
 SELECT 
     'rentease_owned',
     'MRHFM8J42M0123456',
@@ -465,11 +506,12 @@ SELECT
     5,
     32000,
     2800.00,
+    250.00,
     'available',
     (SELECT id FROM locations WHERE name = 'Quezon City Branch'),
     (SELECT id FROM locations WHERE name = 'Quezon City Branch');
 
-INSERT INTO vehicles (owner_id, ownership_type, vehicle_identification_number, make, model, year, color, license_plate, category_id, transmission_type, fuel_type, seating_capacity, current_mileage, daily_rate, status, current_location_id, home_location_id) 
+INSERT INTO vehicles (owner_id, ownership_type, vehicle_identification_number, make, model, year, color, license_plate, category_id, transmission_type, fuel_type, seating_capacity, current_mileage, daily_rate, hourly_late_fee, status, current_location_id, home_location_id) 
 SELECT 
     (SELECT id FROM vehicle_owners WHERE email = 'juan.reyes@email.com'),
     'leased_from_owner',
@@ -485,6 +527,7 @@ SELECT
     4,
     58000,
     2200.00,
+    180.00,
     'available',
     (SELECT id FROM locations WHERE name = 'Manila Branch'),
     (SELECT id FROM locations WHERE name = 'Manila Branch');
@@ -494,18 +537,21 @@ SELECT
 -- ============================================
 
 COMMENT ON TABLE users IS 'All system users: customers, vehicle owners, admin, and staff';
-COMMENT ON TABLE vehicle_owners IS 'Private vehicle owners who lease their vehicles to RentEase';
+COMMENT ON TABLE vehicle_owners IS 'Private vehicle owners who lease their vehicles to RentEase - PERCENTAGE SHARE MODEL';
 COMMENT ON TABLE vehicles IS 'Fleet of vehicles (both RentEase-owned and leased from owners)';
-COMMENT ON TABLE reservations IS 'Customer bookings/reservations';
-COMMENT ON TABLE rentals IS 'Active rental records created when vehicle is picked up';
+COMMENT ON TABLE reservations IS 'Customer bookings/reservations - 20% DEPOSIT REQUIRED';
+COMMENT ON TABLE rentals IS 'Active rental records created when vehicle is picked up - HOURLY LATE FEES';
 COMMENT ON TABLE payments IS 'Customer payments (cash or GCash)';
-COMMENT ON TABLE owner_payments IS 'Payments from RentEase to vehicle owners';
+COMMENT ON TABLE owner_payments IS 'Payments from RentEase to vehicle owners - PERCENTAGE-BASED';
 COMMENT ON TABLE vehicle_tracking IS 'GPS tracking data for vehicles';
 COMMENT ON TABLE maintenance_records IS 'Vehicle maintenance history';
 COMMENT ON TABLE reviews IS 'Customer reviews after completing a rental';
 
 COMMENT ON COLUMN vehicles.ownership_type IS 'Whether vehicle is owned by RentEase or leased from an owner';
+COMMENT ON COLUMN vehicles.hourly_late_fee IS 'Hourly late return fee rate (e.g., ₱200/hour)';
 COMMENT ON COLUMN vehicles.is_tracked IS 'Whether GPS tracking is enabled for this vehicle';
+COMMENT ON COLUMN reservations.deposit_amount IS 'Auto-calculated as 20% of total_amount';
 COMMENT ON COLUMN reservations.status IS 'pending_payment: awaiting payment verification, confirmed: payment verified, active: vehicle picked up, completed: returned, cancelled: booking cancelled';
 COMMENT ON COLUMN payments.payment_method IS 'Cash paid at branch or GCash direct transfer';
-COMMENT ON COLUMN owner_payments.payment_type IS 'How owner is paid: fixed monthly amount, percentage of rentals, or per rental basis';
+COMMENT ON COLUMN rentals.hours_late IS 'Number of hours vehicle returned late (for fee calculation)';
+COMMENT ON COLUMN owner_payments.payment_type IS 'How owner is paid: PERCENTAGE_BASED is primary model';

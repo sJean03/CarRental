@@ -86,21 +86,40 @@ End of month → Calculate earnings → Deduct costs → Pay owner
 
 ---
 
-## ❓ Quick Questions for Approval
+## ✅ APPROVED Requirements
 
-1. **Owner payment:** Fixed monthly OR percentage share?
-2. **Deposits:** Required? What %?
-3. **Late fees:** Hourly or daily rate?
-4. **GPS tracking:** Enable in Phase 1?
-5. **Branches:** Manila, QC, Makati correct?
+**Stakeholder decisions confirmed:**
+
+1. ✅ **Owner payment:** Percentage share (60-65% to owner)
+2. ✅ **Deposits:** 20% required upfront
+3. ✅ **Late fees:** Hourly rate (₱180-₱250/hour depending on vehicle)
+4. ✅ **GPS tracking:** Optional (implement later if needed)
+5. ✅ **Branches:** Manila, Makati, Quezon City
 
 ---
 
-## ✅ Approval
+## 💰 Payment Examples
 
-**Does this database structure fit your business needs?**
+### **Deposit Calculation (20%)**
+```
+Total Amount: ₱10,000
+Deposit (20%): ₱2,000
+Balance Due at Pickup: ₱8,000
+```
 
-- [ ] **Approved** - Proceed with development
+### **Late Fee Calculation (Hourly)**
+```
+Return Late by: 3 hours
+Hourly Rate: ₱200
+Late Fee: ₱600
+```
+
+### **Owner Payment (Percentage Share)**
+```
+Monthly Rental Income: ₱50,000
+Owner Share (60%): ₱30,000
+RentEase Share (40%): ₱20,000
+```
 
 ---
 
