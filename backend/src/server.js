@@ -44,6 +44,7 @@ app.get('/api/health/db', async (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/vehicles', require('./routes/vehicles'));
 app.use('/api/bookings', require('./routes/bookings'));
+app.use('/api/payments', require('./routes/payments'));
 
 // 404 handler
 app.use((req, res) => {
