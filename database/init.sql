@@ -554,4 +554,4 @@ COMMENT ON COLUMN reservations.deposit_amount IS 'Auto-calculated as 20% of tota
 COMMENT ON COLUMN reservations.status IS 'pending_payment: awaiting payment verification, confirmed: payment verified, active: vehicle picked up, completed: returned, cancelled: booking cancelled';
 COMMENT ON COLUMN payments.payment_method IS 'Cash paid at branch or GCash direct transfer';
 COMMENT ON COLUMN rentals.hours_late IS 'Number of hours vehicle returned late (for fee calculation)';
-COMMENT ON COLUMN owner_payments.payment_type IS 'How owner is paid: PERCENTAGE_BASED is primary model';
+COMMENT ON COLUMN vehicle_owners.payment_type IS 'How owner is paid: PERCENTAGE_BASED is primary model';
