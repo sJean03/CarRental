@@ -1,19 +1,21 @@
-import Link from 'next/link';
-import { Menu, User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export default function Header() {
   return (
-    <header className="header-nav sticky top-0 z-50">
+    <header className="border-b">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="text-2xl font-bold italic text-primary">
-            RENTEASE
+          <Link href="/" className="text-2xl font-bold text-primary">
+            RentEase PH
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
+            <Link href="/" className="hover:text-primary transition-colors">
+              Home
+            </Link>
             <Link href="/vehicles" className="hover:text-primary transition-colors">
               Vehicles
             </Link>
@@ -25,19 +27,17 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* User Menu */}
-          <div className="flex items-center gap-4">
-            <Link href="/login">
-              <Button variant="ghost" size="icon" className="text-white hover:text-primary">
-                <User className="h-5 w-5" />
-              </Button>
-            </Link>
-            <Button variant="ghost" size="icon" className="md:hidden text-white">
-              <Menu className="h-5 w-5" />
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" asChild>
+              <Link href="/login">Login</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/register">Register</Link>
             </Button>
           </div>
         </div>
       </div>
     </header>
-  );
+  )
 }
