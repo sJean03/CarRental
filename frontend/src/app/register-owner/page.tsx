@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext'
 
 export default function RegisterOwnerPage() {
   const router = useRouter()
-  const { registerOwner } = useAuth()
+  const { register } = useAuth() // Changed from registerOwner to register
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -50,8 +50,8 @@ export default function RegisterOwnerPage() {
       return
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters')
       setIsLoading(false)
       return
     }
@@ -62,13 +62,30 @@ export default function RegisterOwnerPage() {
       return
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address')
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const { confirmPassword, ...registerData } = formData
-      await registerOwner(registerData)
-      router.push('/owner')
+      const { confirmPassword, address, gcash_number, bank_account_number, bank_name, ...registerData } = formData
+      
+      // Register with role: 'owner'
+      await register({
+        ...registerData,
+        role: 'owner' // This is the key change
+      })
+      
+      // Note: address, gcash_number, bank details would be saved separately
+      // in a vehicle_owners table after registration completes
+      // For now, we just register the user with owner role
+      
+      // Redirect is handled in AuthContext
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -105,6 +122,7 @@ export default function RegisterOwnerPage() {
                       value={formData.first_name}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -115,6 +133,7 @@ export default function RegisterOwnerPage() {
                       value={formData.last_name}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -128,6 +147,7 @@ export default function RegisterOwnerPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -141,6 +161,7 @@ export default function RegisterOwnerPage() {
                     value={formData.phone_number}
                     onChange={handleChange}
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -152,6 +173,7 @@ export default function RegisterOwnerPage() {
                     value={formData.address}
                     onChange={handleChange}
                     placeholder="Street, City, Province"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -160,7 +182,7 @@ export default function RegisterOwnerPage() {
               <div className="space-y-4">
                 <h3 className="font-semibold">Payment Information</h3>
                 <p className="text-sm text-muted-foreground">
-                  Provide at least one payment method to receive your earnings
+                  Provide at least one payment method to receive your earnings (can be updated later in your profile)
                 </p>
                 
                 <div className="space-y-2">
@@ -172,6 +194,7 @@ export default function RegisterOwnerPage() {
                     placeholder="09XX-XXX-XXXX"
                     value={formData.gcash_number}
                     onChange={handleChange}
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -184,6 +207,7 @@ export default function RegisterOwnerPage() {
                       placeholder="e.g., BDO, BPI"
                       value={formData.bank_name}
                       onChange={handleChange}
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -193,6 +217,7 @@ export default function RegisterOwnerPage() {
                       name="bank_account_number"
                       value={formData.bank_account_number}
                       onChange={handleChange}
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -209,10 +234,11 @@ export default function RegisterOwnerPage() {
                       id="password"
                       name="password"
                       type="password"
-                      placeholder="Min. 6 characters"
+                      placeholder="Min. 8 characters"
                       value={formData.password}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -224,6 +250,7 @@ export default function RegisterOwnerPage() {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -235,6 +262,7 @@ export default function RegisterOwnerPage() {
                   id="terms"
                   checked={acceptedTerms}
                   onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                  disabled={isLoading}
                 />
                 <label
                   htmlFor="terms"

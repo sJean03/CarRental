@@ -49,8 +49,8 @@ export default function RegisterPage() {
       return
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters')
       setIsLoading(false)
       return
     }
@@ -61,13 +61,26 @@ export default function RegisterPage() {
       return
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address')
+      setIsLoading(false)
+      return
+    }
+
     try {
       const { confirmPassword, ...registerData } = formData
-      await register(registerData)
-      router.push('/dashboard')
+      
+      // Add role for customer registration
+      await register({
+        ...registerData,
+        role: 'customer' // This is important for backend
+      })
+      
+      // Redirect is handled in AuthContext
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -104,6 +117,7 @@ export default function RegisterPage() {
                       value={formData.first_name}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -114,6 +128,7 @@ export default function RegisterPage() {
                       value={formData.last_name}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -127,6 +142,7 @@ export default function RegisterPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -140,6 +156,7 @@ export default function RegisterPage() {
                     value={formData.phone_number}
                     onChange={handleChange}
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -151,6 +168,7 @@ export default function RegisterPage() {
                     type="date"
                     value={formData.date_of_birth}
                     onChange={handleChange}
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -167,6 +185,7 @@ export default function RegisterPage() {
                       name="driver_license_number"
                       value={formData.driver_license_number}
                       onChange={handleChange}
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -177,6 +196,7 @@ export default function RegisterPage() {
                       type="date"
                       value={formData.driver_license_expiry}
                       onChange={handleChange}
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -193,10 +213,11 @@ export default function RegisterPage() {
                       id="password"
                       name="password"
                       type="password"
-                      placeholder="Min. 6 characters"
+                      placeholder="Min. 8 characters"
                       value={formData.password}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -208,6 +229,7 @@ export default function RegisterPage() {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -219,6 +241,7 @@ export default function RegisterPage() {
                   id="terms"
                   checked={acceptedTerms}
                   onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                  disabled={isLoading}
                 />
                 <label
                   htmlFor="terms"
