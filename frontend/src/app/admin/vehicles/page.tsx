@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   Table, 
   TableBody, 
@@ -14,124 +15,65 @@ import {
   TableRow 
 } from '@/components/ui/table'
 import Link from 'next/link'
-
-// Mock vehicles data
-const mockVehicles = [
-  {
-    id: '1',
-    make: 'Toyota',
-    model: 'Vios',
-    year: 2020,
-    license_plate: 'ABC-1234',
-    category: 'Sedan',
-    transmission: 'Automatic',
-    fuel_type: 'Petrol',
-    daily_rate: 2500,
-    status: 'available',
-    owner: 'Maria Santos',
-    ownership_type: 'leased'
-  },
-  {
-    id: '2',
-    make: 'Honda',
-    model: 'City',
-    year: 2021,
-    license_plate: 'XYZ-5678',
-    category: 'Sedan',
-    transmission: 'Automatic',
-    fuel_type: 'Petrol',
-    daily_rate: 2800,
-    status: 'available',
-    owner: 'RentEase',
-    ownership_type: 'owned'
-  },
-  {
-    id: '3',
-    make: 'Mitsubishi',
-    model: 'Montero Sport',
-    year: 2022,
-    license_plate: 'DEF-9012',
-    category: 'SUV',
-    transmission: 'Automatic',
-    fuel_type: 'Diesel',
-    daily_rate: 4500,
-    status: 'rented',
-    owner: 'RentEase',
-    ownership_type: 'owned'
-  },
-  {
-    id: '4',
-    make: 'Fiat',
-    model: 'Panda',
-    year: 2019,
-    license_plate: 'GHI-3456',
-    category: 'Small Car',
-    transmission: 'Manual',
-    fuel_type: 'Petrol',
-    daily_rate: 2200,
-    status: 'available',
-    owner: 'Juan Reyes',
-    ownership_type: 'leased'
-  },
-  {
-    id: '5',
-    make: 'Toyota',
-    model: 'Hiace',
-    year: 2020,
-    license_plate: 'JKL-7890',
-    category: 'Van',
-    transmission: 'Manual',
-    fuel_type: 'Diesel',
-    daily_rate: 5500,
-    status: 'maintenance',
-    owner: 'RentEase',
-    ownership_type: 'owned'
-  },
-  {
-    id: '6',
-    make: 'BMW',
-    model: '3 Series',
-    year: 2021,
-    license_plate: 'MNO-1234',
-    category: 'Luxury',
-    transmission: 'Automatic',
-    fuel_type: 'Petrol',
-    daily_rate: 7500,
-    status: 'available',
-    owner: 'RentEase',
-    ownership_type: 'owned'
-  }
-]
+import { vehicleService } from '@/services'
+import { Vehicle } from '@/types'
+import { Loader2, Search, Car, Plus, Eye, Edit2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { formatCurrency, getStatusColor, formatStatus } from '@/lib/utils'
 
 export default function AdminVehiclesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'bg-green-100 text-green-800 hover:bg-green-100'
-      case 'rented':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-100'
-      case 'maintenance':
-        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
-      case 'retired':
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100'
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100'
+  useEffect(() => {
+    loadVehicles()
+  }, [])
+
+  const loadVehicles = async () => {
+    try {
+      setLoading(true)
+      const response = await vehicleService.getVehicles()
+      
+      const vehiclesData = response.data || (response as any).vehicles || []
+      setVehicles(vehiclesData)
+    } catch (error) {
+      console.error('Failed to load vehicles:', error)
+      toast.error('Failed to load vehicles')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const filteredVehicles = mockVehicles.filter(vehicle => {
+  const filteredVehicles = vehicles.filter(vehicle => {
     const matchesSearch = 
       vehicle.make.toLowerCase().includes(searchQuery.toLowerCase()) ||
       vehicle.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle.license_plate.toLowerCase().includes(searchQuery.toLowerCase())
+      vehicle.license_plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (vehicle.category_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
     
     const matchesStatus = filterStatus === 'all' || vehicle.status === filterStatus
 
     return matchesSearch && matchesStatus
   })
+
+  // Calculate stats
+  const totalCount = vehicles.length
+  const availableCount = vehicles.filter(v => v.status === 'available').length
+  const rentedCount = vehicles.filter(v => v.status === 'rented').length
+  const maintenanceCount = vehicles.filter(v => v.status === 'maintenance').length
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading vehicles...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -143,8 +85,11 @@ export default function AdminVehiclesPage() {
             Manage all vehicles in the RentEase fleet
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/vehicles/add">Add New Vehicle</Link>
+        <Button className="gap-2" asChild>
+          <Link href="/admin/vehicles/add">
+            <Plus className="h-4 w-4" />
+            Add New Vehicle
+          </Link>
         </Button>
       </div>
 
@@ -152,15 +97,18 @@ export default function AdminVehiclesPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total Vehicles</CardDescription>
-            <CardTitle className="text-3xl">{mockVehicles.length}</CardTitle>
+            <CardDescription className="flex items-center gap-2">
+              <Car className="h-4 w-4" />
+              Total Vehicles
+            </CardDescription>
+            <CardTitle className="text-3xl">{totalCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Available</CardDescription>
             <CardTitle className="text-3xl text-green-600">
-              {mockVehicles.filter(v => v.status === 'available').length}
+              {availableCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -168,7 +116,7 @@ export default function AdminVehiclesPage() {
           <CardHeader className="pb-2">
             <CardDescription>Currently Rented</CardDescription>
             <CardTitle className="text-3xl text-blue-600">
-              {mockVehicles.filter(v => v.status === 'rented').length}
+              {rentedCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -176,7 +124,7 @@ export default function AdminVehiclesPage() {
           <CardHeader className="pb-2">
             <CardDescription>In Maintenance</CardDescription>
             <CardTitle className="text-3xl text-yellow-600">
-              {mockVehicles.filter(v => v.status === 'maintenance').length}
+              {maintenanceCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -188,24 +136,28 @@ export default function AdminVehiclesPage() {
           <CardTitle>Filter Vehicles</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <Input
-              placeholder="Search by make, model, or license plate..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-sm"
-            />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="border rounded-md px-3 py-2"
-            >
-              <option value="all">All Status</option>
-              <option value="available">Available</option>
-              <option value="rented">Rented</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="retired">Retired</option>
-            </select>
+          <div className="flex gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-[300px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by make, model, or license plate..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="rented">Rented</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="retired">Retired</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -216,57 +168,107 @@ export default function AdminVehiclesPage() {
           <CardTitle>All Vehicles ({filteredVehicles.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vehicle</TableHead>
-                <TableHead>License Plate</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Daily Rate</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredVehicles.map((vehicle) => (
-                <TableRow key={vehicle.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{vehicle.make} {vehicle.model}</p>
-                      <p className="text-sm text-muted-foreground">{vehicle.year}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono">{vehicle.license_plate}</TableCell>
-                  <TableCell>{vehicle.category}</TableCell>
-                  <TableCell>₱{vehicle.daily_rate.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(vehicle.status)}>
-                      {vehicle.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="text-sm">{vehicle.owner}</p>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {vehicle.ownership_type}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/admin/vehicles/${vehicle.id}`}>View</Link>
-                      </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/admin/vehicles/${vehicle.id}/edit`}>Edit</Link>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {filteredVehicles.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vehicle</TableHead>
+                    <TableHead>License Plate</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Specs</TableHead>
+                    <TableHead>Daily Rate</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ownership</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredVehicles.map((vehicle) => (
+                    <TableRow key={vehicle.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {vehicle.make} {vehicle.model}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {vehicle.year} • {vehicle.color}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono font-semibold">
+                        {vehicle.license_plate}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {vehicle.category_name || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm space-y-1">
+                          <p className="capitalize">{vehicle.transmission_type}</p>
+                          <p className="text-muted-foreground capitalize">
+                            {vehicle.fuel_type} • {vehicle.seating_capacity} seats
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {formatCurrency(vehicle.daily_rate)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(vehicle.status)}>
+                          {formatStatus(vehicle.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {vehicle.owner_name && (
+                            <p className="font-medium">{vehicle.owner_name}</p>
+                          )}
+                          <p className="text-muted-foreground capitalize">
+                            {vehicle.ownership_type?.replace('_', ' ') || 'RentEase owned'}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="gap-1" asChild>
+                            <Link href={`/vehicles/${vehicle.id}`}>
+                              <Eye className="h-3 w-3" />
+                              View
+                            </Link>
+                          </Button>
+                          <Button variant="outline" size="sm" className="gap-1" asChild>
+                            <Link href={`/admin/vehicles/${vehicle.id}/edit`}>
+                              <Edit2 className="h-3 w-3" />
+                              Edit
+                            </Link>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Car className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-muted-foreground mb-4">
+                {searchQuery || filterStatus !== 'all' 
+                  ? 'No vehicles found matching your filters' 
+                  : 'No vehicles in the system yet'}
+              </p>
+              {!searchQuery && filterStatus === 'all' && (
+                <Button asChild>
+                  <Link href="/admin/vehicles/add">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add First Vehicle
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

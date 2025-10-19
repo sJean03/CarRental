@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,111 +14,60 @@ import {
   TableRow 
 } from '@/components/ui/table'
 import Link from 'next/link'
-
-// Mock reservations data
-const mockReservations = [
-  {
-    id: '1',
-    booking_reference: 'RES-2025-0001',
-    customer: 'Jace Gonzales',
-    vehicle: 'Toyota Vios 2020',
-    pickup_date: '2025-10-25T09:00:00',
-    dropoff_date: '2025-10-28T17:00:00',
-    total_amount: 7500,
-    status: 'confirmed',
-    payment_status: 'verified',
-    created_at: '2025-10-19T10:00:00'
-  },
-  {
-    id: '2',
-    booking_reference: 'RES-2025-0002',
-    customer: 'Maria Santos',
-    vehicle: 'Honda City 2021',
-    pickup_date: '2025-10-22T10:00:00',
-    dropoff_date: '2025-10-24T18:00:00',
-    total_amount: 5600,
-    status: 'pending_payment',
-    payment_status: 'pending',
-    created_at: '2025-10-20T14:30:00'
-  },
-  {
-    id: '3',
-    booking_reference: 'RES-2025-0003',
-    customer: 'Juan Reyes',
-    vehicle: 'Mitsubishi Montero Sport 2022',
-    pickup_date: '2025-10-21T08:00:00',
-    dropoff_date: '2025-10-23T20:00:00',
-    total_amount: 13500,
-    status: 'active',
-    payment_status: 'verified',
-    created_at: '2025-10-18T09:15:00'
-  },
-  {
-    id: '4',
-    booking_reference: 'RES-2025-0004',
-    customer: 'Pedro Santos',
-    vehicle: 'BMW 3 Series 2021',
-    pickup_date: '2025-09-15T09:00:00',
-    dropoff_date: '2025-09-20T18:00:00',
-    total_amount: 37500,
-    status: 'completed',
-    payment_status: 'completed',
-    created_at: '2025-09-10T11:00:00'
-  },
-  {
-    id: '5',
-    booking_reference: 'RES-2025-0005',
-    customer: 'Ana Cruz',
-    vehicle: 'Fiat Panda 2019',
-    pickup_date: '2025-10-30T10:00:00',
-    dropoff_date: '2025-11-02T16:00:00',
-    total_amount: 6600,
-    status: 'cancelled',
-    payment_status: 'refunded',
-    created_at: '2025-10-15T16:45:00'
-  }
-]
+import { bookingService } from '@/services'
+import { Reservation } from '@/types'
+import { Loader2, Calendar, Eye } from 'lucide-react'
+import { toast } from 'sonner'
+import { formatCurrency, formatDate, formatStatus, getStatusColor } from '@/lib/utils'
 
 export default function AdminReservationsPage() {
   const [selectedTab, setSelectedTab] = useState('all')
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-100'
-      case 'active':
-        return 'bg-green-100 text-green-800 hover:bg-green-100'
-      case 'completed':
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100'
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 hover:bg-red-100'
-      case 'pending_payment':
-        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100'
-    }
-  }
+  useEffect(() => {
+    loadReservations()
+  }, [])
 
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case 'verified':
-      case 'completed':
-        return 'bg-green-100 text-green-800 hover:bg-green-100'
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
-      case 'refunded':
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100'
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100'
+  const loadReservations = async () => {
+    try {
+      setLoading(true)
+      const response = await bookingService.getAllBookings()
+      
+      const bookingsData = response.data || (response as any).bookings || []
+      setReservations(bookingsData)
+    } catch (error) {
+      console.error('Failed to load reservations:', error)
+      toast.error('Failed to load reservations')
+    } finally {
+      setLoading(false)
     }
   }
 
   const filterReservations = (status: string) => {
-    if (status === 'all') return mockReservations
-    return mockReservations.filter(r => r.status === status)
+    if (status === 'all') return reservations
+    return reservations.filter(r => r.status === status)
   }
 
-  const reservations = filterReservations(selectedTab)
+  const filteredReservations = filterReservations(selectedTab)
+
+  // Calculate stats
+  const totalCount = reservations.length
+  const pendingCount = reservations.filter(r => r.status === 'pending_payment').length
+  const confirmedCount = reservations.filter(r => r.status === 'confirmed').length
+  const activeCount = reservations.filter(r => r.status === 'active').length
+  const completedCount = reservations.filter(r => r.status === 'completed').length
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading reservations...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -135,14 +84,14 @@ export default function AdminReservationsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total</CardDescription>
-            <CardTitle className="text-3xl">{mockReservations.length}</CardTitle>
+            <CardTitle className="text-3xl">{totalCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Pending Payment</CardDescription>
             <CardTitle className="text-3xl text-yellow-600">
-              {mockReservations.filter(r => r.status === 'pending_payment').length}
+              {pendingCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -150,7 +99,7 @@ export default function AdminReservationsPage() {
           <CardHeader className="pb-2">
             <CardDescription>Confirmed</CardDescription>
             <CardTitle className="text-3xl text-blue-600">
-              {mockReservations.filter(r => r.status === 'confirmed').length}
+              {confirmedCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -158,7 +107,7 @@ export default function AdminReservationsPage() {
           <CardHeader className="pb-2">
             <CardDescription>Active</CardDescription>
             <CardTitle className="text-3xl text-green-600">
-              {mockReservations.filter(r => r.status === 'active').length}
+              {activeCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -166,7 +115,7 @@ export default function AdminReservationsPage() {
           <CardHeader className="pb-2">
             <CardDescription>Completed</CardDescription>
             <CardTitle className="text-3xl">
-              {mockReservations.filter(r => r.status === 'completed').length}
+              {completedCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -175,8 +124,17 @@ export default function AdminReservationsPage() {
       {/* Tabs */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList>
-          <TabsTrigger value="all">All Reservations</TabsTrigger>
-          <TabsTrigger value="pending_payment">Pending Payment</TabsTrigger>
+          <TabsTrigger value="all">
+            All Reservations
+          </TabsTrigger>
+          <TabsTrigger value="pending_payment">
+            Pending Payment
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
@@ -185,60 +143,116 @@ export default function AdminReservationsPage() {
         <TabsContent value={selectedTab} className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Reservations ({reservations.length})</CardTitle>
+              <CardTitle>Reservations ({filteredReservations.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Vehicle</TableHead>
-                    <TableHead>Dates</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {reservations.map((reservation) => (
-                    <TableRow key={reservation.id}>
-                      <TableCell className="font-mono text-sm">
-                        {reservation.booking_reference}
-                      </TableCell>
-                      <TableCell>{reservation.customer}</TableCell>
-                      <TableCell>{reservation.vehicle}</TableCell>
-                      <TableCell className="text-sm">
-                        <div>
-                          <p>{new Date(reservation.pickup_date).toLocaleDateString()}</p>
-                          <p className="text-muted-foreground">
-                            to {new Date(reservation.dropoff_date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        ₱{reservation.total_amount.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(reservation.status)}>
-                          {reservation.status.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getPaymentStatusColor(reservation.payment_status)}>
-                          {reservation.payment_status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/admin/reservations/${reservation.id}`}>View</Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {filteredReservations.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Vehicle</TableHead>
+                        <TableHead>Pickup</TableHead>
+                        <TableHead>Dropoff</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredReservations.map((reservation) => (
+                        <TableRow key={reservation.id}>
+                          <TableCell className="font-mono text-sm font-semibold">
+                            {reservation.booking_reference}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">
+                                {reservation.customer_first_name} {reservation.customer_last_name}
+                              </p>
+                              {reservation.customer_email && (
+                                <p className="text-xs text-muted-foreground">
+                                  {reservation.customer_email}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">
+                                {reservation.make} {reservation.model}
+                              </p>
+                              {reservation.year && (
+                                <p className="text-xs text-muted-foreground">
+                                  {reservation.year}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3 text-muted-foreground" />
+                              <div>
+                                <p>{formatDate(reservation.pickup_date)}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {reservation.pickup_location_name || 'TBD'}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3 text-muted-foreground" />
+                              <div>
+                                <p>{formatDate(reservation.dropoff_date)}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {reservation.dropoff_location_name || 'TBD'}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-semibold">
+                                {formatCurrency(reservation.total_amount)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Deposit: {formatCurrency(reservation.deposit_amount)}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(reservation.status)}>
+                              {formatStatus(reservation.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatDate(reservation.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm" className="gap-1" asChild>
+                              <Link href={`/admin/reservations/${reservation.id}`}>
+                                <Eye className="h-3 w-3" />
+                                View
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-muted-foreground">
+                    No {selectedTab === 'all' ? '' : selectedTab.replace('_', ' ')} reservations found
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

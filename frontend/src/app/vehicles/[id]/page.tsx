@@ -1,4 +1,7 @@
-import { notFound } from 'next/navigation'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { notFound, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -7,127 +10,69 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import BookingForm from '@/components/vehicles/BookingForm'
 import VehicleCard from '@/components/vehicles/VehicleCard'
-import { Vehicle } from '@/types/vehicle'
-
-// Mock data (same as vehicles page - we'll use API later)
-const mockVehicles: Vehicle[] = [
-  {
-    id: '1',
-    make: 'Toyota',
-    model: 'Vios',
-    year: 2020,
-    color: 'White',
-    license_plate: 'ABC-1234',
-    category_id: '1',
-    category_name: 'Sedan',
-    transmission_type: 'automatic',
-    fuel_type: 'petrol',
-    seating_capacity: 5,
-    current_mileage: 45230,
-    daily_rate: 2500,
-    status: 'available',
-    image_urls: []
-  },
-  {
-    id: '2',
-    make: 'Honda',
-    model: 'City',
-    year: 2021,
-    color: 'Silver',
-    license_plate: 'XYZ-5678',
-    category_id: '1',
-    category_name: 'Sedan',
-    transmission_type: 'automatic',
-    fuel_type: 'petrol',
-    seating_capacity: 5,
-    current_mileage: 32000,
-    daily_rate: 2800,
-    status: 'available',
-    image_urls: []
-  },
-  {
-    id: '3',
-    make: 'Mitsubishi',
-    model: 'Montero Sport',
-    year: 2022,
-    color: 'Black',
-    license_plate: 'DEF-9012',
-    category_id: '3',
-    category_name: 'SUV',
-    transmission_type: 'automatic',
-    fuel_type: 'diesel',
-    seating_capacity: 7,
-    current_mileage: 15000,
-    daily_rate: 4500,
-    status: 'available',
-    image_urls: []
-  },
-  {
-    id: '4',
-    make: 'Fiat',
-    model: 'Panda',
-    year: 2019,
-    color: 'Red',
-    license_plate: 'GHI-3456',
-    category_id: '0',
-    category_name: 'Small Car',
-    transmission_type: 'manual',
-    fuel_type: 'petrol',
-    seating_capacity: 4,
-    current_mileage: 58000,
-    daily_rate: 2200,
-    status: 'available',
-    image_urls: []
-  },
-  {
-    id: '5',
-    make: 'Toyota',
-    model: 'Hiace',
-    year: 2020,
-    color: 'White',
-    license_plate: 'JKL-7890',
-    category_id: '4',
-    category_name: 'Van',
-    transmission_type: 'manual',
-    fuel_type: 'diesel',
-    seating_capacity: 15,
-    current_mileage: 72000,
-    daily_rate: 5500,
-    status: 'rented',
-    image_urls: []
-  },
-  {
-    id: '6',
-    make: 'BMW',
-    model: '3 Series',
-    year: 2021,
-    color: 'Blue',
-    license_plate: 'MNO-1234',
-    category_id: '5',
-    category_name: 'Luxury',
-    transmission_type: 'automatic',
-    fuel_type: 'petrol',
-    seating_capacity: 5,
-    current_mileage: 28000,
-    daily_rate: 7500,
-    status: 'available',
-    image_urls: []
-  }
-]
+import { Vehicle } from '@/types'
+import { vehicleService } from '@/services'
+import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function VehicleDetailsPage({ params }: { params: { id: string } }) {
-  // Find the vehicle
-  const vehicle = mockVehicles.find(v => v.id === params.id)
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+  const [similarVehicles, setSimilarVehicles] = useState<Vehicle[]>([])
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    loadVehicleData()
+  }, [params.id])
+
+  const loadVehicleData = async () => {
+    try {
+      setLoading(true)
+      
+      // Fetch vehicle details
+      const vehicleResponse = await vehicleService.getVehicleById(params.id)
+      // Handle both response formats: { data: Vehicle } or { vehicle: Vehicle }
+      const vehicleData = vehicleResponse.data || (vehicleResponse as any).vehicle
+      
+      if (!vehicleData) {
+        toast.error('Vehicle not found')
+        router.push('/vehicles')
+        return
+      }
+      
+      setVehicle(vehicleData)
+
+      // Fetch similar vehicles
+      if (vehicleData.category_id) {
+        const similarResponse = await vehicleService.getVehiclesByCategory(vehicleData.category_id)
+        // Handle both response formats: { data: Vehicle[] } or { vehicles: Vehicle[] }
+        const similarData = similarResponse.data || (similarResponse as any).vehicles || []
+        setSimilarVehicles(similarData.filter((v: Vehicle) => v.id !== vehicleData.id).slice(0, 3))
+      }
+    } catch (error: any) {
+      console.error('Failed to load vehicle:', error)
+      toast.error('Failed to load vehicle details')
+      router.push('/vehicles')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading vehicle details...</p>
+        </div>
+      </div>
+    )
+  }
 
   // If vehicle not found, show 404
   if (!vehicle) {
     notFound()
   }
-
-  // Get similar vehicles (same category, exclude current)
-  const similarVehicles = mockVehicles
-    .filter(v => v.category_id === vehicle.category_id && v.id !== vehicle.id)
-    .slice(0, 3)
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -175,7 +120,7 @@ export default function VehicleDetailsPage({ params }: { params: { id: string } 
               {vehicle.make} {vehicle.model} {vehicle.year}
             </h1>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{vehicle.category_name}</Badge>
+              <Badge variant="outline">{vehicle.category_name || 'Vehicle'}</Badge>
               <Badge variant="outline">{vehicle.color}</Badge>
               <Badge variant="outline">License: {vehicle.license_plate}</Badge>
             </div>
@@ -254,7 +199,7 @@ export default function VehicleDetailsPage({ params }: { params: { id: string } 
                       <span className="text-green-600">✓</span>
                       <span>Central Locking</span>
                     </li>
-                    {vehicle.category_name === 'Luxury' && (
+                    {(vehicle.category_name?.toLowerCase().includes('luxury') || vehicle.daily_rate > 5000) && (
                       <>
                         <li className="flex items-center gap-2">
                           <span className="text-green-600">✓</span>
@@ -288,7 +233,7 @@ export default function VehicleDetailsPage({ params }: { params: { id: string } 
                     <h3 className="font-semibold mb-2">Rental Policy</h3>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                       <li>• Minimum rental period: 1 day</li>
-                      <li>• Late return fee: ₱500/hour</li>
+                      <li>• Late return fee: ₱{vehicle.hourly_late_fee?.toLocaleString() || 200}/hour</li>
                       <li>• Fuel policy: Return with same fuel level</li>
                       <li>• Cleaning fee: ₱1,000 if returned dirty</li>
                     </ul>
@@ -299,6 +244,7 @@ export default function VehicleDetailsPage({ params }: { params: { id: string } 
                     <ul className="space-y-2 text-sm text-muted-foreground">
                       <li>• Cash payment at branch</li>
                       <li>• GCash transfer accepted</li>
+                      <li>• 20% deposit required to confirm booking</li>
                     </ul>
                   </div>
                 </CardContent>

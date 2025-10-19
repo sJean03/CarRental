@@ -1,113 +1,92 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
-import { Reservation } from '@/types/booking'
-
-// Mock bookings data (we'll replace with API later)
-const mockBookings: Reservation[] = [
-  {
-    id: '1',
-    booking_reference: 'RES-2025-0001',
-    user_id: 'user1',
-    vehicle_id: '1',
-    vehicle_name: 'Toyota Vios 2020',
-    vehicle_image: '',
-    pickup_location: 'Manila Branch',
-    dropoff_location: 'Manila Branch',
-    pickup_date: '2025-10-25T09:00:00',
-    dropoff_date: '2025-10-28T17:00:00',
-    status: 'confirmed',
-    base_amount: 7500,
-    insurance_amount: 0,
-    total_amount: 7500,
-    created_at: '2025-10-19T10:00:00',
-    updated_at: '2025-10-19T10:30:00'
-  },
-  {
-    id: '2',
-    booking_reference: 'RES-2025-0002',
-    user_id: 'user1',
-    vehicle_id: '3',
-    vehicle_name: 'Mitsubishi Montero Sport 2022',
-    vehicle_image: '',
-    pickup_location: 'Quezon City Branch',
-    dropoff_location: 'Makati Branch',
-    pickup_date: '2025-09-15T08:00:00',
-    dropoff_date: '2025-09-20T18:00:00',
-    status: 'completed',
-    base_amount: 22500,
-    insurance_amount: 1000,
-    total_amount: 23500,
-    created_at: '2025-09-10T14:00:00',
-    updated_at: '2025-09-20T19:00:00'
-  },
-  {
-    id: '3',
-    booking_reference: 'RES-2025-0003',
-    user_id: 'user1',
-    vehicle_id: '2',
-    vehicle_name: 'Honda City 2021',
-    vehicle_image: '',
-    pickup_location: 'Makati Branch',
-    dropoff_location: 'Makati Branch',
-    pickup_date: '2025-08-10T10:00:00',
-    dropoff_date: '2025-08-12T16:00:00',
-    status: 'cancelled',
-    base_amount: 5600,
-    insurance_amount: 400,
-    total_amount: 6000,
-    created_at: '2025-08-05T09:00:00',
-    updated_at: '2025-08-08T11:00:00'
-  }
-]
+import { Reservation } from '@/types'
+import { bookingService } from '@/services'
+import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { formatCurrency, formatDate, calculateDays, getStatusColor, formatStatus } from '@/lib/utils'
 
 export default function BookingsPage() {
   const [selectedTab, setSelectedTab] = useState('all')
+  const [bookings, setBookings] = useState<Reservation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [cancelling, setCancelling] = useState<string | null>(null)
 
-  console.log('Total bookings:', mockBookings.length)
-  console.log('Selected tab:', selectedTab)
-  // Filter bookings based on status
-  const filterBookings = (status?: string) => {
-    if (status === 'all') return mockBookings
-    return mockBookings.filter(booking => booking.status === status)
-  }
+  useEffect(() => {
+    loadBookings()
+  }, [])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-100'
-      case 'active':
-        return 'bg-green-100 text-green-800 hover:bg-green-100'
-      case 'completed':
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100'
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 hover:bg-red-100'
-      case 'pending_payment':
-        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100'
+  const loadBookings = async () => {
+    try {
+      setLoading(true)
+      const response = await bookingService.getMyBookings()
+      
+      // Handle different response formats
+      const bookingsData = response.data || (response as any).bookings || []
+      setBookings(bookingsData)
+    } catch (error) {
+      console.error('Failed to load bookings:', error)
+      toast.error('Failed to load bookings')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    return status.split('_').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ')
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm('Are you sure you want to cancel this booking?')) {
+      return
+    }
+
+    try {
+      setCancelling(bookingId)
+      await bookingService.cancelBooking(bookingId)
+      
+      toast.success('Booking cancelled successfully')
+      // Reload bookings
+      loadBookings()
+    } catch (error: any) {
+      console.error('Failed to cancel booking:', error)
+      toast.error(error.response?.data?.error || 'Failed to cancel booking')
+    } finally {
+      setCancelling(null)
+    }
   }
 
-  const calculateDays = (pickup: string, dropoff: string) => {
-    const start = new Date(pickup)
-    const end = new Date(dropoff)
-    const diffTime = Math.abs(end.getTime() - start.getTime())
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays
+  // Filter bookings based on status
+  const filterBookings = (status: string) => {
+    if (status === 'all') return bookings
+    
+    // Map tab values to actual statuses
+    const statusMap: Record<string, string[]> = {
+      'confirmed': ['confirmed', 'pending_payment'],
+      'active': ['active'],
+      'completed': ['completed'],
+      'cancelled': ['cancelled']
+    }
+    
+    const allowedStatuses = statusMap[status] || [status]
+    return bookings.filter(booking => allowedStatuses.includes(booking.status))
   }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading bookings...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const filteredBookings = filterBookings(selectedTab)
 
   return (
     <div className="space-y-6">
@@ -115,6 +94,40 @@ export default function BookingsPage() {
       <div>
         <h2 className="text-2xl font-bold mb-2">My Bookings</h2>
         <p className="text-muted-foreground">View and manage all your rental reservations</p>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>All</CardDescription>
+            <CardTitle className="text-2xl">{bookings.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Upcoming</CardDescription>
+            <CardTitle className="text-2xl">
+              {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending_payment').length}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-2xl">
+              {bookings.filter(b => b.status === 'active').length}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Completed</CardDescription>
+            <CardTitle className="text-2xl">
+              {bookings.filter(b => b.status === 'completed').length}
+            </CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
       {/* Tabs for filtering */}
@@ -128,16 +141,18 @@ export default function BookingsPage() {
         </TabsList>
 
         <TabsContent value={selectedTab} className="space-y-4 mt-6">
-          {filterBookings(selectedTab).length > 0 ? (
-            filterBookings(selectedTab).map((booking) => (
+          {filteredBookings.length > 0 ? (
+            filteredBookings.map((booking) => (
               <Card key={booking.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <CardTitle className="text-xl">{booking.vehicle_name}</CardTitle>
+                        <CardTitle className="text-xl">
+                          {booking.make} {booking.model} {booking.year || ''}
+                        </CardTitle>
                         <Badge className={getStatusColor(booking.status)}>
-                          {getStatusLabel(booking.status)}
+                          {formatStatus(booking.status)}
                         </Badge>
                       </div>
                       <CardDescription>
@@ -145,7 +160,7 @@ export default function BookingsPage() {
                       </CardDescription>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold">₱{booking.total_amount.toLocaleString()}</p>
+                      <p className="text-2xl font-bold">{formatCurrency(booking.total_amount)}</p>
                       <p className="text-sm text-muted-foreground">
                         {calculateDays(booking.pickup_date, booking.dropoff_date)} day
                         {calculateDays(booking.pickup_date, booking.dropoff_date) > 1 ? 's' : ''}
@@ -159,41 +174,31 @@ export default function BookingsPage() {
                     {/* Pickup */}
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-muted-foreground">Pickup</p>
-                      <p className="font-medium">
-                        {new Date(booking.pickup_date).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </p>
+                      <p className="font-medium">{formatDate(booking.pickup_date)}</p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(booking.pickup_date).toLocaleTimeString('en-US', { 
                           hour: '2-digit', 
                           minute: '2-digit' 
                         })}
                       </p>
-                      <p className="text-sm text-muted-foreground">{booking.pickup_location}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {booking.pickup_location_name || 'Location TBD'}
+                      </p>
                     </div>
 
                     {/* Dropoff */}
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-muted-foreground">Dropoff</p>
-                      <p className="font-medium">
-                        {new Date(booking.dropoff_date).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </p>
+                      <p className="font-medium">{formatDate(booking.dropoff_date)}</p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(booking.dropoff_date).toLocaleTimeString('en-US', { 
                           hour: '2-digit', 
                           minute: '2-digit' 
                         })}
                       </p>
-                      <p className="text-sm text-muted-foreground">{booking.dropoff_location}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {booking.dropoff_location_name || 'Location TBD'}
+                      </p>
                     </div>
                   </div>
 
@@ -203,14 +208,18 @@ export default function BookingsPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Base Amount</span>
-                      <span>₱{booking.base_amount.toLocaleString()}</span>
+                      <span>{formatCurrency(booking.base_amount)}</span>
                     </div>
                     {booking.insurance_amount > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Insurance</span>
-                        <span>₱{booking.insurance_amount.toLocaleString()}</span>
+                        <span>{formatCurrency(booking.insurance_amount)}</span>
                       </div>
                     )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Deposit (20%)</span>
+                      <span>{formatCurrency(booking.deposit_amount)}</span>
+                    </div>
                   </div>
 
                   <Separator />
@@ -219,17 +228,29 @@ export default function BookingsPage() {
                   <div className="flex gap-2">
                     <Button asChild className="flex-1">
                       <Link href={`/dashboard/bookings/${booking.id}`}>
-                        View Details
+                        {booking.status === 'pending_payment' ? 'Pay Now' : 'View Details'}
                       </Link>
                     </Button>
                     
-                    {booking.status === 'confirmed' && (
-                      <Button variant="destructive" className="flex-1">
-                        Cancel Booking
+                    {(booking.status === 'confirmed' || booking.status === 'pending_payment') && (
+                      <Button 
+                        variant="destructive" 
+                        className="flex-1"
+                        onClick={() => handleCancelBooking(booking.id)}
+                        disabled={cancelling === booking.id}
+                      >
+                        {cancelling === booking.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Cancelling...
+                          </>
+                        ) : (
+                          'Cancel Booking'
+                        )}
                       </Button>
                     )}
                     
-                    {booking.status === 'completed' && (
+                    {booking.status === 'completed' && booking.vehicle_id && (
                       <Button variant="outline" className="flex-1" asChild>
                         <Link href={`/vehicles/${booking.vehicle_id}`}>
                           Book Again

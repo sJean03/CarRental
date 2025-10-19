@@ -1,141 +1,59 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import VehicleCard from '@/components/vehicles/VehicleCard'
 import VehicleFiltersComponent from '@/components/vehicles/VehicleFilters'
-import { Vehicle, VehicleFilters } from '@/types/vehicle'
-
-// Mock data (we'll replace this with API calls later)
-const mockVehicles: Vehicle[] = [
-  {
-    id: '1',
-    make: 'Toyota',
-    model: 'Vios',
-    year: 2020,
-    color: 'White',
-    license_plate: 'ABC-1234',
-    category_id: '1',
-    category_name: 'Sedan',
-    transmission_type: 'automatic',
-    fuel_type: 'petrol',
-    seating_capacity: 5,
-    current_mileage: 45230,
-    daily_rate: 2500,
-    status: 'available',
-    image_urls: []
-  },
-  {
-    id: '2',
-    make: 'Honda',
-    model: 'City',
-    year: 2021,
-    color: 'Silver',
-    license_plate: 'XYZ-5678',
-    category_id: '1',
-    category_name: 'Sedan',
-    transmission_type: 'automatic',
-    fuel_type: 'petrol',
-    seating_capacity: 5,
-    current_mileage: 32000,
-    daily_rate: 2800,
-    status: 'available',
-    image_urls: []
-  },
-  {
-    id: '3',
-    make: 'Mitsubishi',
-    model: 'Montero Sport',
-    year: 2022,
-    color: 'Black',
-    license_plate: 'DEF-9012',
-    category_id: '3',
-    category_name: 'SUV',
-    transmission_type: 'automatic',
-    fuel_type: 'diesel',
-    seating_capacity: 7,
-    current_mileage: 15000,
-    daily_rate: 4500,
-    status: 'available',
-    image_urls: []
-  },
-  {
-    id: '4',
-    make: 'Fiat',
-    model: 'Panda',
-    year: 2019,
-    color: 'Red',
-    license_plate: 'GHI-3456',
-    category_id: '0',
-    category_name: 'Small Car',
-    transmission_type: 'manual',
-    fuel_type: 'petrol',
-    seating_capacity: 4,
-    current_mileage: 58000,
-    daily_rate: 2200,
-    status: 'available',
-    image_urls: []
-  },
-  {
-    id: '5',
-    make: 'Toyota',
-    model: 'Hiace',
-    year: 2020,
-    color: 'White',
-    license_plate: 'JKL-7890',
-    category_id: '4',
-    category_name: 'Van',
-    transmission_type: 'manual',
-    fuel_type: 'diesel',
-    seating_capacity: 15,
-    current_mileage: 72000,
-    daily_rate: 5500,
-    status: 'rented',
-    image_urls: []
-  },
-  {
-    id: '6',
-    make: 'BMW',
-    model: '3 Series',
-    year: 2021,
-    color: 'Blue',
-    license_plate: 'MNO-1234',
-    category_id: '5',
-    category_name: 'Luxury',
-    transmission_type: 'automatic',
-    fuel_type: 'petrol',
-    seating_capacity: 5,
-    current_mileage: 28000,
-    daily_rate: 7500,
-    status: 'available',
-    image_urls: []
-  }
-]
+import { Vehicle, VehicleFilters } from '@/types' // ← Fixed import
+import { vehicleService } from '@/services'
+import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function VehiclesPage() {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<VehicleFilters>({})
 
-  // Filter vehicles based on current filters
-  const filteredVehicles = mockVehicles.filter(vehicle => {
+  // Load vehicles on mount and when filters change
+  useEffect(() => {
+    loadVehicles()
+  }, [filters])
+
+  const loadVehicles = async () => {
+    try {
+      setLoading(true)
+      const response = await vehicleService.getVehicles(filters)
+      
+      // Handle different response formats from backend
+      let vehicleData: Vehicle[] = []
+      
+      if (Array.isArray(response)) {
+        vehicleData = response
+      } else if (response.data && Array.isArray(response.data)) {
+        vehicleData = response.data
+      } else if ((response as any).vehicles && Array.isArray((response as any).vehicles)) {
+        vehicleData = (response as any).vehicles
+      }
+      
+      setVehicles(vehicleData)
+    } catch (error: any) {
+      console.error('Failed to load vehicles:', error)
+      toast.error('Failed to load vehicles. Please try again.')
+      setVehicles([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Filter vehicles on client-side for immediate feedback
+  const filteredVehicles = vehicles.filter(vehicle => {
     if (filters.search) {
       const searchLower = filters.search.toLowerCase()
       const matchesSearch = 
         vehicle.make.toLowerCase().includes(searchLower) ||
-        vehicle.model.toLowerCase().includes(searchLower)
+        vehicle.model.toLowerCase().includes(searchLower) ||
+        (vehicle.category_name?.toLowerCase().includes(searchLower) ?? false)
       if (!matchesSearch) return false
     }
-
-    if (filters.transmission && vehicle.transmission_type !== filters.transmission) {
-      return false
-    }
-
-    if (filters.fuel_type && vehicle.fuel_type !== filters.fuel_type) {
-      return false
-    }
-
-    if (filters.category && vehicle.category_name?.toLowerCase().replace(' ', '-') !== filters.category) {
-      return false
-    }
-
     return true
   })
 
@@ -153,24 +71,37 @@ export default function VehiclesPage() {
       <VehicleFiltersComponent filters={filters} onFilterChange={setFilters} />
 
       {/* Results Count */}
-      <div className="mb-4">
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''}
-        </p>
-      </div>
+      {!loading && (
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground">
+            Showing {filteredVehicles.length} vehicle{filteredVehicles.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+      )}
 
-      {/* Vehicle Grid */}
-      {filteredVehicles.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVehicles.map(vehicle => (
-            <VehicleCard key={vehicle.id} vehicle={vehicle} />
-          ))}
+      {/* Loading State */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading vehicles...</p>
+          </div>
         </div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground text-lg">No vehicles found matching your criteria.</p>
-          <p className="text-sm text-muted-foreground mt-2">Try adjusting your filters.</p>
-        </div>
+        /* Vehicle Grid */
+        filteredVehicles.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredVehicles.map(vehicle => (
+              <VehicleCard key={vehicle.id} vehicle={vehicle} />
+            ))}
+          </div>
+        ) : (
+          /* Empty State */
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">No vehicles found matching your criteria.</p>
+            <p className="text-sm text-muted-foreground mt-2">Try adjusting your filters.</p>
+          </div>
+        )
       )}
     </div>
   )
