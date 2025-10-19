@@ -1,3 +1,4 @@
+const db = require('../config/database');
 const getRevenueReport = async (req, res) => {
   try {
     const { startDate, endDate, groupBy = 'month' } = req.query;

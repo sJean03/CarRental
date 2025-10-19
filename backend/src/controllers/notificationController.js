@@ -1,4 +1,5 @@
 const db = require('../config/database');
+
 const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;

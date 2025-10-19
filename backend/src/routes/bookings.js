@@ -1,20 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
-const authMiddleware = require('../middleware/auth');
+const { protect, restrictTo } = require('../middleware/auth');
 
 // Public routes
 router.get('/insurance-plans', bookingController.getInsurancePlans);
 router.get('/locations', bookingController.getLocations);
 
 // Protected routes (require authentication)
-router.post('/calculate-cost', authMiddleware.verifyToken, bookingController.calculateCost);
-router.post('/', authMiddleware.verifyToken, bookingController.createBooking);
-router.get('/my-bookings', authMiddleware.verifyToken, bookingController.getMyBookings);
-router.get('/:id', authMiddleware.verifyToken, bookingController.getBookingById);
-router.patch('/:id/cancel', authMiddleware.verifyToken, bookingController.cancelBooking);
+router.use(protect);
+
+router.post('/calculate-cost', bookingController.calculateCost);
+router.post('/', bookingController.createBooking);
+router.get('/my-bookings', bookingController.getMyBookings);
+router.get('/:id', bookingController.getBookingById);
+router.patch('/:id/cancel', bookingController.cancelBooking);
 
 // Admin/Staff only routes
-router.get('/', authMiddleware.verifyToken, authMiddleware.isStaff, bookingController.getAllBookings);
+router.get('/', restrictTo('admin', 'staff'), bookingController.getAllBookings);
 
 module.exports = router;

@@ -1,3 +1,5 @@
+const db = require('../config/database'); 
+
 const getAdminDashboard = async (req, res) => {
   try {
     // Overall statistics

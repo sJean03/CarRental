@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
-const authMiddleware = require('../middleware/auth');
+const { protect, restrictTo } = require('../middleware/auth');
 
 // All routes require staff/admin authentication
-router.use(authMiddleware.verifyToken);
-router.use(authMiddleware.isStaff);
+router.use(protect);
+router.use(restrictTo('admin', 'staff'));
 
 // Check-in / Check-out
 router.post('/check-in', adminController.checkIn);

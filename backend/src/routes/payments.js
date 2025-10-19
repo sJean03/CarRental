@@ -1,15 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
-const authMiddleware = require('../middleware/auth');
+const { protect, restrictTo } = require('../middleware/auth');
 
-// Protected routes (customer)
-router.post('/', authMiddleware.verifyToken, paymentController.submitPayment);
-router.get('/booking/:reservation_id', authMiddleware.verifyToken, paymentController.getPaymentHistory);
+// All routes require authentication
+router.use(protect);
+
+// Customer routes
+router.post('/', paymentController.submitPayment);
+router.get('/booking/:reservation_id', paymentController.getPaymentHistory);
 
 // Admin/Staff only routes
-router.get('/', authMiddleware.verifyToken, authMiddleware.isStaff, paymentController.getAllPayments);
-router.get('/pending', authMiddleware.verifyToken, authMiddleware.isStaff, paymentController.getPendingVerifications);
-router.patch('/:id/verify', authMiddleware.verifyToken, authMiddleware.isStaff, paymentController.verifyPayment);
+router.get('/', restrictTo('admin', 'staff'), paymentController.getAllPayments);
+router.get('/pending', restrictTo('admin', 'staff'), paymentController.getPendingVerifications);
+router.patch('/:id/verify', restrictTo('admin', 'staff'), paymentController.verifyPayment);
+router.patch('/:id/refund', restrictTo('admin', 'staff'), paymentController.refundPayment);
 
 module.exports = router;

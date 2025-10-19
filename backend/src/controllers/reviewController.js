@@ -1,4 +1,6 @@
-const db = require('../config/database');
+const reviewModel = require('../models/reviewModel');
+const rentalModel = require('../models/rentalModel');
+const bookingModel = require('../models/bookingModel');
 
 // @desc    Create a review
 // @route   POST /api/reviews
@@ -24,57 +26,42 @@ const createReview = async (req, res) => {
     }
 
     // Verify rental exists and belongs to user
-    const rentalCheck = await db.query(
-      `SELECT r.id, res.user_id, res.status 
-       FROM rentals r
-       JOIN reservations res ON res.id = r.reservation_id
-       WHERE r.id = $1`,
-      [rentalId]
-    );
-
-    if (rentalCheck.rows.length === 0) {
+    const rental = await rentalModel.findByReservationId(rentalId);
+    if (!rental) {
       return res.status(404).json({ error: 'Rental not found' });
     }
 
-    if (rentalCheck.rows[0].user_id !== userId) {
+    // Get booking to verify user
+    const booking = await bookingModel.findById(rentalId);
+    if (!booking || booking.user_id !== userId) {
       return res.status(403).json({ error: 'Unauthorized to review this rental' });
     }
 
-    if (rentalCheck.rows[0].status !== 'completed') {
+    if (booking.status !== 'completed') {
       return res.status(400).json({ error: 'Can only review completed rentals' });
     }
 
-    // Check if review already exists
-    const existingReview = await db.query(
-      'SELECT id FROM reviews WHERE rental_id = $1 AND user_id = $2',
-      [rentalId, userId]
-    );
-
-    if (existingReview.rows.length > 0) {
+    // Check if already reviewed
+    const hasReviewed = await reviewModel.hasUserReviewed(userId, rental.id);
+    if (hasReviewed) {
       return res.status(400).json({ error: 'You have already reviewed this rental' });
     }
 
-    const query = `
-      INSERT INTO reviews (
-        user_id, rental_id, vehicle_id, rating, 
-        cleanliness_rating, vehicle_condition_rating, comment
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *
-    `;
-
-    const result = await db.query(query, [
-      userId,
-      rentalId,
-      vehicleId,
+    // Create review
+    const review = await reviewModel.create({
+      user_id: userId,
+      rental_id: rental.id,
+      vehicle_id: vehicleId,
       rating,
-      cleanlinessRating || null,
-      vehicleConditionRating || null,
-      comment || null
-    ]);
+      cleanliness_rating: cleanlinessRating || null,
+      vehicle_condition_rating: vehicleConditionRating || null,
+      comment: comment || null
+    });
 
     res.status(201).json({
+      success: true,
       message: 'Review created successfully',
-      review: result.rows[0]
+      review
     });
   } catch (error) {
     console.error('Error creating review:', error);
@@ -88,54 +75,21 @@ const createReview = async (req, res) => {
 const getVehicleReviews = async (req, res) => {
   try {
     const { vehicleId } = req.params;
-    const { page = 1, limit = 10, sortBy = 'created_at', order = 'DESC' } = req.query;
-
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    const query = `
-      SELECT 
-        r.*,
-        u.first_name,
-        u.last_name,
-        res.booking_reference,
-        res.pickup_date,
-        res.dropoff_date
-      FROM reviews r
-      JOIN users u ON u.id = r.user_id
-      JOIN rentals rent ON rent.id = r.rental_id
-      JOIN reservations res ON res.id = rent.reservation_id
-      WHERE r.vehicle_id = $1
-      ORDER BY ${sortBy} ${order}
-      LIMIT $2 OFFSET $3
-    `;
-
-    const result = await db.query(query, [vehicleId, limit, offset]);
-
-    // Get review statistics
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total_reviews,
-        ROUND(AVG(rating), 1) as average_rating,
-        ROUND(AVG(cleanliness_rating), 1) as avg_cleanliness,
-        ROUND(AVG(vehicle_condition_rating), 1) as avg_condition,
-        COUNT(CASE WHEN rating = 5 THEN 1 END) as five_star,
-        COUNT(CASE WHEN rating = 4 THEN 1 END) as four_star,
-        COUNT(CASE WHEN rating = 3 THEN 1 END) as three_star,
-        COUNT(CASE WHEN rating = 2 THEN 1 END) as two_star,
-        COUNT(CASE WHEN rating = 1 THEN 1 END) as one_star
-      FROM reviews
-      WHERE vehicle_id = $1
-    `;
-
-    const statsResult = await db.query(statsQuery, [vehicleId]);
+    const reviews = await reviewModel.findByVehicleId(vehicleId, limit, offset);
+    const statistics = await reviewModel.getVehicleStats(vehicleId);
 
     res.json({
-      reviews: result.rows,
-      statistics: statsResult.rows[0],
+      success: true,
+      reviews,
+      statistics,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: parseInt(statsResult.rows[0].total_reviews)
+        page,
+        limit,
+        total: parseInt(statistics.total_reviews)
       }
     });
   } catch (error) {
@@ -151,28 +105,12 @@ const getMyReviews = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const query = `
-      SELECT 
-        r.*,
-        v.make,
-        v.model,
-        v.license_plate,
-        res.booking_reference,
-        res.pickup_date,
-        res.dropoff_date
-      FROM reviews r
-      JOIN vehicles v ON v.id = r.vehicle_id
-      JOIN rentals rent ON rent.id = r.rental_id
-      JOIN reservations res ON res.id = rent.reservation_id
-      WHERE r.user_id = $1
-      ORDER BY r.created_at DESC
-    `;
-
-    const result = await db.query(query, [userId]);
+    const reviews = await reviewModel.findByUserId(userId);
 
     res.json({
-      reviews: result.rows,
-      count: result.rows.length
+      success: true,
+      reviews,
+      count: reviews.length
     });
   } catch (error) {
     console.error('Error fetching user reviews:', error);
@@ -195,38 +133,28 @@ const updateReview = async (req, res) => {
     } = req.body;
 
     // Check if review exists and belongs to user
-    const reviewCheck = await db.query(
-      'SELECT id FROM reviews WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
-
-    if (reviewCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Review not found or unauthorized' });
+    const existingReview = await reviewModel.findById(id);
+    if (!existingReview) {
+      return res.status(404).json({ error: 'Review not found' });
     }
 
-    const query = `
-      UPDATE reviews
-      SET 
-        rating = COALESCE($1, rating),
-        cleanliness_rating = COALESCE($2, cleanliness_rating),
-        vehicle_condition_rating = COALESCE($3, vehicle_condition_rating),
-        comment = COALESCE($4, comment),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
-      RETURNING *
-    `;
+    if (existingReview.user_id !== userId) {
+      return res.status(403).json({ error: 'Unauthorized to update this review' });
+    }
 
-    const result = await db.query(query, [
-      rating,
-      cleanlinessRating,
-      vehicleConditionRating,
-      comment,
-      id
-    ]);
+    // Build update object
+    const updateData = {};
+    if (rating !== undefined) updateData.rating = rating;
+    if (cleanlinessRating !== undefined) updateData.cleanliness_rating = cleanlinessRating;
+    if (vehicleConditionRating !== undefined) updateData.vehicle_condition_rating = vehicleConditionRating;
+    if (comment !== undefined) updateData.comment = comment;
+
+    const review = await reviewModel.update(id, updateData);
 
     res.json({
+      success: true,
       message: 'Review updated successfully',
-      review: result.rows[0]
+      review
     });
   } catch (error) {
     console.error('Error updating review:', error);
@@ -243,25 +171,20 @@ const deleteReview = async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.role;
 
+    const existingReview = await reviewModel.findById(id);
+    if (!existingReview) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
     // Admin can delete any review, users can only delete their own
-    let query;
-    let params;
-
-    if (userRole === 'admin') {
-      query = 'DELETE FROM reviews WHERE id = $1 RETURNING id';
-      params = [id];
-    } else {
-      query = 'DELETE FROM reviews WHERE id = $1 AND user_id = $2 RETURNING id';
-      params = [id, userId];
+    if (userRole !== 'admin' && existingReview.user_id !== userId) {
+      return res.status(403).json({ error: 'Unauthorized to delete this review' });
     }
 
-    const result = await db.query(query, params);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Review not found or unauthorized' });
-    }
+    await reviewModel.delete(id);
 
     res.json({
+      success: true,
       message: 'Review deleted successfully'
     });
   } catch (error) {
@@ -270,10 +193,31 @@ const deleteReview = async (req, res) => {
   }
 };
 
+// @desc    Get recent reviews (for homepage)
+// @route   GET /api/reviews/recent
+// @access  Public
+const getRecentReviews = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    
+    const reviews = await reviewModel.getRecent(limit);
+
+    res.json({
+      success: true,
+      reviews,
+      count: reviews.length
+    });
+  } catch (error) {
+    console.error('Error fetching recent reviews:', error);
+    res.status(500).json({ error: 'Failed to fetch recent reviews' });
+  }
+};
+
 module.exports = {
   createReview,
   getVehicleReviews,
   getMyReviews,
   updateReview,
-  deleteReview
+  deleteReview,
+  getRecentReviews
 };

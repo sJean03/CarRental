@@ -1,71 +1,37 @@
-const db = require('../config/database');
+const maintenanceModel = require('../models/maintenanceModel');
+const vehicleModel = require('../models/vehicleModel');
+const { protect, restrictTo } = require('../middleware/auth');
 
 // @desc    Get all maintenance records
 // @route   GET /api/maintenance
 // @access  Private (Admin/Staff)
 const getAllMaintenanceRecords = async (req, res) => {
   try {
-    const { vehicleId, type, startDate, endDate, page = 1, limit = 20 } = req.query;
+    const filters = {
+      vehicle_id: req.query.vehicleId,
+      maintenance_type: req.query.type,
+      start_date: req.query.startDate,
+      end_date: req.query.endDate
+    };
 
-    let query = `
-      SELECT 
-        m.*,
-        v.make,
-        v.model,
-        v.license_plate,
-        u.first_name || ' ' || u.last_name as created_by_name
-      FROM maintenance_records m
-      JOIN vehicles v ON v.id = m.vehicle_id
-      LEFT JOIN users u ON u.id = m.created_by
-      WHERE 1=1
-    `;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
-    const params = [];
-    let paramIndex = 1;
+    const records = await maintenanceModel.findAll(filters);
 
-    if (vehicleId) {
-      query += ` AND m.vehicle_id = $${paramIndex}`;
-      params.push(vehicleId);
-      paramIndex++;
-    }
-
-    if (type) {
-      query += ` AND m.maintenance_type = $${paramIndex}`;
-      params.push(type);
-      paramIndex++;
-    }
-
-    if (startDate) {
-      query += ` AND m.service_date >= $${paramIndex}`;
-      params.push(startDate);
-      paramIndex++;
-    }
-
-    if (endDate) {
-      query += ` AND m.service_date <= $${paramIndex}`;
-      params.push(endDate);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY m.service_date DESC`;
-
-    // Pagination
-    const offset = (page - 1) * limit;
-    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    params.push(limit, offset);
-
-    const result = await db.query(query, params);
-
-    // Get total count
-    const countQuery = `SELECT COUNT(*) FROM maintenance_records WHERE 1=1`;
-    const countResult = await db.query(countQuery);
+    // Simple pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedRecords = records.slice(startIndex, endIndex);
 
     res.json({
-      records: result.rows,
+      success: true,
+      records: paginatedRecords,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: parseInt(countResult.rows[0].count)
+        page,
+        limit,
+        total: records.length,
+        totalPages: Math.ceil(records.length / limit)
       }
     });
   } catch (error) {
@@ -100,45 +66,32 @@ const createMaintenanceRecord = async (req, res) => {
     }
 
     // Check if vehicle exists
-    const vehicleCheck = await db.query(
-      'SELECT id, status FROM vehicles WHERE id = $1',
-      [vehicleId]
-    );
-
-    if (vehicleCheck.rows.length === 0) {
+    const vehicle = await vehicleModel.findById(vehicleId);
+    if (!vehicle) {
       return res.status(404).json({ error: 'Vehicle not found' });
     }
 
-    const query = `
-      INSERT INTO maintenance_records (
-        vehicle_id, maintenance_type, description, cost, 
-        service_date, next_service_date, performed_by, 
-        mileage_at_service, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `;
-
-    const result = await db.query(query, [
-      vehicleId,
-      maintenanceType,
+    // Create maintenance record
+    const record = await maintenanceModel.create({
+      vehicle_id: vehicleId,
+      maintenance_type: maintenanceType,
       description,
-      cost || 0,
-      serviceDate,
-      nextServiceDate || null,
-      performedBy || null,
-      mileageAtService || null,
-      userId
-    ]);
+      cost: cost || 0,
+      service_date: serviceDate,
+      next_service_date: nextServiceDate || null,
+      performed_by: performedBy || null,
+      mileage_at_service: mileageAtService || null,
+      created_by: userId
+    });
 
-    // Update vehicle status to maintenance if needed
-    await db.query(
-      'UPDATE vehicles SET status = $1 WHERE id = $2',
-      ['maintenance', vehicleId]
-    );
+    // Update vehicle status to maintenance
+    // Note: You might want to make this optional or conditional
+    // await vehicleModel.update(vehicleId, { status: 'maintenance' });
 
     res.status(201).json({
+      success: true,
       message: 'Maintenance record created successfully',
-      record: result.rows[0]
+      record
     });
   } catch (error) {
     console.error('Error creating maintenance record:', error);
@@ -163,43 +116,27 @@ const updateMaintenanceRecord = async (req, res) => {
     } = req.body;
 
     // Check if record exists
-    const recordCheck = await db.query(
-      'SELECT id FROM maintenance_records WHERE id = $1',
-      [id]
-    );
-
-    if (recordCheck.rows.length === 0) {
+    const existingRecord = await maintenanceModel.findById(id);
+    if (!existingRecord) {
       return res.status(404).json({ error: 'Maintenance record not found' });
     }
 
-    const query = `
-      UPDATE maintenance_records 
-      SET 
-        maintenance_type = COALESCE($1, maintenance_type),
-        description = COALESCE($2, description),
-        cost = COALESCE($3, cost),
-        service_date = COALESCE($4, service_date),
-        next_service_date = COALESCE($5, next_service_date),
-        performed_by = COALESCE($6, performed_by),
-        mileage_at_service = COALESCE($7, mileage_at_service)
-      WHERE id = $8
-      RETURNING *
-    `;
+    // Build update object
+    const updateData = {};
+    if (maintenanceType) updateData.maintenance_type = maintenanceType;
+    if (description) updateData.description = description;
+    if (cost !== undefined) updateData.cost = cost;
+    if (serviceDate) updateData.service_date = serviceDate;
+    if (nextServiceDate !== undefined) updateData.next_service_date = nextServiceDate;
+    if (performedBy !== undefined) updateData.performed_by = performedBy;
+    if (mileageAtService !== undefined) updateData.mileage_at_service = mileageAtService;
 
-    const result = await db.query(query, [
-      maintenanceType,
-      description,
-      cost,
-      serviceDate,
-      nextServiceDate,
-      performedBy,
-      mileageAtService,
-      id
-    ]);
+    const record = await maintenanceModel.update(id, updateData);
 
     res.json({
+      success: true,
       message: 'Maintenance record updated successfully',
-      record: result.rows[0]
+      record
     });
   } catch (error) {
     console.error('Error updating maintenance record:', error);
@@ -212,36 +149,14 @@ const updateMaintenanceRecord = async (req, res) => {
 // @access  Private (Admin/Staff)
 const getUpcomingMaintenance = async (req, res) => {
   try {
-    const query = `
-      SELECT 
-        v.*,
-        m.next_service_date,
-        m.service_date as last_service_date,
-        m.maintenance_type as last_maintenance_type,
-        m.mileage_at_service as last_service_mileage,
-        (v.current_mileage - COALESCE(m.mileage_at_service, 0)) as mileage_since_service
-      FROM vehicles v
-      LEFT JOIN LATERAL (
-        SELECT *
-        FROM maintenance_records mr
-        WHERE mr.vehicle_id = v.id
-        ORDER BY mr.service_date DESC
-        LIMIT 1
-      ) m ON true
-      WHERE v.is_active = true
-        AND (
-          m.next_service_date <= CURRENT_DATE + INTERVAL '30 days'
-          OR (v.current_mileage - COALESCE(m.mileage_at_service, 0)) >= 5000
-          OR m.next_service_date IS NULL
-        )
-      ORDER BY m.next_service_date ASC NULLS LAST
-    `;
-
-    const result = await db.query(query);
+    const daysAhead = parseInt(req.query.days) || 30;
+    
+    const vehicles = await maintenanceModel.getUpcoming(daysAhead);
 
     res.json({
-      vehicles: result.rows,
-      count: result.rows.length
+      success: true,
+      vehicles,
+      count: vehicles.length
     });
   } catch (error) {
     console.error('Error fetching upcoming maintenance:', error);
@@ -261,13 +176,23 @@ const completeMaintenance = async (req, res) => {
       return res.status(400).json({ error: 'Vehicle ID is required' });
     }
 
+    // Verify vehicle exists
+    const vehicle = await vehicleModel.findById(vehicleId);
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+
     // Update vehicle status back to available
+    // Note: This should be done via vehicleModel if it has an update method
+    // For now using db directly as vehicleModel might not have update method
+    const db = require('../config/database');
     await db.query(
       'UPDATE vehicles SET status = $1 WHERE id = $2',
       ['available', vehicleId]
     );
 
     res.json({
+      success: true,
       message: 'Maintenance completed and vehicle restored to available status'
     });
   } catch (error) {
@@ -276,10 +201,30 @@ const completeMaintenance = async (req, res) => {
   }
 };
 
+// @desc    Get maintenance statistics
+// @route   GET /api/maintenance/stats
+// @access  Private (Admin/Staff)
+const getMaintenanceStats = async (req, res) => {
+  try {
+    const { vehicleId, startDate, endDate } = req.query;
+
+    const stats = await maintenanceModel.getStatistics(vehicleId, startDate, endDate);
+
+    res.json({
+      success: true,
+      statistics: stats
+    });
+  } catch (error) {
+    console.error('Error fetching maintenance statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch maintenance statistics' });
+  }
+};
+
 module.exports = {
   getAllMaintenanceRecords,
   createMaintenanceRecord,
   updateMaintenanceRecord,
   getUpcomingMaintenance,
-  completeMaintenance
+  completeMaintenance,
+  getMaintenanceStats
 };

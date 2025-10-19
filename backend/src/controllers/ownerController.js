@@ -1,4 +1,8 @@
-const db = require('../config/database');
+const vehicleOwnerModel = require('../models/vehicleOwnerModel');
+const ownerPaymentModel = require('../models/ownerPaymentModel');
+const vehicleModel = require('../models/vehicleModel');
+const rentalModel = require('../models/rentalModel');
+const reviewModel = require('../models/reviewModel');
 
 // @desc    Get owner dashboard statistics
 // @route   GET /api/owners/dashboard
@@ -8,55 +12,26 @@ const getOwnerDashboard = async (req, res) => {
     const ownerId = req.user.ownerId; // Assuming you have ownerId in JWT
 
     // Get owner info with earnings
-    const ownerQuery = `
-      SELECT 
-        vo.*,
-        COUNT(DISTINCT v.id) as total_vehicles,
-        COUNT(DISTINCT r.id) as total_rentals,
-        COALESCE(SUM(op.owner_share), 0) as total_earned,
-        COALESCE(SUM(CASE WHEN op.payment_status = 'pending' THEN op.owner_share ELSE 0 END), 0) as pending_payments
-      FROM vehicle_owners vo
-      LEFT JOIN vehicles v ON v.owner_id = vo.id
-      LEFT JOIN reservations res ON res.vehicle_id = v.id
-      LEFT JOIN rentals r ON r.reservation_id = res.id
-      LEFT JOIN owner_payments op ON op.owner_id = vo.id
-      WHERE vo.id = $1
-      GROUP BY vo.id
-    `;
-
-    const result = await db.query(ownerQuery, [ownerId]);
-
-    if (result.rows.length === 0) {
+    const owner = await vehicleOwnerModel.findById(ownerId);
+    if (!owner) {
       return res.status(404).json({ error: 'Owner not found' });
     }
 
-    // Get recent rentals
-    const recentRentalsQuery = `
-      SELECT 
-        r.id,
-        v.make,
-        v.model,
-        v.license_plate,
-        res.booking_reference,
-        res.pickup_date,
-        res.dropoff_date,
-        res.total_amount,
-        res.status,
-        u.first_name || ' ' || u.last_name as customer_name
-      FROM rentals r
-      JOIN reservations res ON res.id = r.reservation_id
-      JOIN vehicles v ON v.id = res.vehicle_id
-      JOIN users u ON u.id = res.user_id
-      WHERE v.owner_id = $1
-      ORDER BY r.created_at DESC
-      LIMIT 10
-    `;
+    // Get owner's vehicles
+    const vehicles = await vehicleOwnerModel.getVehicles(ownerId);
 
-    const recentRentals = await db.query(recentRentalsQuery, [ownerId]);
+    // Get payment summary
+    const paymentSummary = await vehicleOwnerModel.getPaymentSummary(ownerId);
 
     res.json({
-      owner: result.rows[0],
-      recentRentals: recentRentals.rows
+      success: true,
+      owner: {
+        ...owner,
+        total_vehicles: owner.total_vehicles || 0,
+        total_earnings: owner.total_earnings || 0
+      },
+      vehicles,
+      payment_summary: paymentSummary
     });
   } catch (error) {
     console.error('Error fetching owner dashboard:', error);
@@ -71,28 +46,12 @@ const getOwnerVehicles = async (req, res) => {
   try {
     const ownerId = req.user.ownerId;
 
-    const query = `
-      SELECT 
-        v.*,
-        vc.name as category_name,
-        l.name as location_name,
-        COUNT(DISTINCT res.id) as total_bookings,
-        COALESCE(AVG(rev.rating), 0) as average_rating,
-        COUNT(DISTINCT rev.id) as review_count
-      FROM vehicles v
-      LEFT JOIN vehicle_categories vc ON vc.id = v.category_id
-      LEFT JOIN locations l ON l.id = v.current_location_id
-      LEFT JOIN reservations res ON res.vehicle_id = v.id AND res.status != 'cancelled'
-      LEFT JOIN reviews rev ON rev.vehicle_id = v.id
-      WHERE v.owner_id = $1
-      GROUP BY v.id, vc.name, l.name
-      ORDER BY v.created_at DESC
-    `;
-
-    const result = await db.query(query, [ownerId]);
+    const vehicles = await vehicleOwnerModel.getVehicles(ownerId);
 
     res.json({
-      vehicles: result.rows
+      success: true,
+      vehicles,
+      count: vehicles.length
     });
   } catch (error) {
     console.error('Error fetching owner vehicles:', error);
@@ -106,64 +65,30 @@ const getOwnerVehicles = async (req, res) => {
 const getOwnerPayments = async (req, res) => {
   try {
     const ownerId = req.user.ownerId;
-    const { status, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const filters = {
+      payment_status: req.query.status,
+      start_date: req.query.startDate,
+      end_date: req.query.endDate
+    };
 
-    let query = `
-      SELECT 
-        op.*,
-        u.first_name || ' ' || u.last_name as paid_by_name
-      FROM owner_payments op
-      LEFT JOIN users u ON u.id = op.paid_by
-      WHERE op.owner_id = $1
-    `;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
-    const params = [ownerId];
-    let paramIndex = 2;
+    const payments = await ownerPaymentModel.findByOwnerId(ownerId, filters);
 
-    if (status) {
-      query += ` AND op.payment_status = $${paramIndex}`;
-      params.push(status);
-      paramIndex++;
-    }
-
-    if (startDate) {
-      query += ` AND op.payment_period_start >= $${paramIndex}`;
-      params.push(startDate);
-      paramIndex++;
-    }
-
-    if (endDate) {
-      query += ` AND op.payment_period_end <= $${paramIndex}`;
-      params.push(endDate);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY op.created_at DESC`;
-
-    // Pagination
-    const offset = (page - 1) * limit;
-    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    params.push(limit, offset);
-
-    const result = await db.query(query, params);
-
-    // Get total count
-    const countQuery = `
-      SELECT COUNT(*) 
-      FROM owner_payments 
-      WHERE owner_id = $1
-      ${status ? 'AND payment_status = $2' : ''}
-    `;
-    const countParams = [ownerId];
-    if (status) countParams.push(status);
-    const countResult = await db.query(countQuery, countParams);
+    // Simple pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedPayments = payments.slice(startIndex, endIndex);
 
     res.json({
-      payments: result.rows,
+      success: true,
+      payments: paginatedPayments,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: parseInt(countResult.rows[0].count)
+        page,
+        limit,
+        total: payments.length,
+        totalPages: Math.ceil(payments.length / limit)
       }
     });
   } catch (error) {
@@ -181,33 +106,35 @@ const getVehicleAnalytics = async (req, res) => {
     const ownerId = req.user.ownerId;
 
     // Verify ownership
-    const ownershipCheck = await db.query(
-      'SELECT id FROM vehicles WHERE id = $1 AND owner_id = $2',
-      [vehicleId, ownerId]
-    );
+    const vehicle = await vehicleModel.findById(vehicleId);
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
 
-    if (ownershipCheck.rows.length === 0) {
+    if (vehicle.owner_id !== ownerId) {
       return res.status(403).json({ error: 'Unauthorized access to vehicle' });
     }
 
-    // Get analytics data
-    const analyticsQuery = `
+    // Get vehicle statistics
+    const vehicleStats = await reviewModel.getVehicleStats(vehicleId);
+
+    // Get maintenance costs
+    const maintenanceModel = require('../models/maintenanceModel');
+    const maintenanceStats = await maintenanceModel.getStatistics(vehicleId);
+
+    // Calculate rental statistics from bookings
+    const db = require('../config/database');
+    const rentalStatsQuery = `
       SELECT 
         COUNT(res.id) as total_bookings,
         COUNT(CASE WHEN res.status = 'completed' THEN 1 END) as completed_rentals,
         COUNT(CASE WHEN res.status = 'cancelled' THEN 1 END) as cancelled_bookings,
         COALESCE(SUM(res.total_amount), 0) as total_revenue,
-        COALESCE(AVG(rev.rating), 0) as average_rating,
-        COUNT(DISTINCT rev.id) as total_reviews,
         COALESCE(AVG(EXTRACT(EPOCH FROM (res.dropoff_date - res.pickup_date))/86400), 0) as avg_rental_days
-      FROM vehicles v
-      LEFT JOIN reservations res ON res.vehicle_id = v.id
-      LEFT JOIN reviews rev ON rev.vehicle_id = v.id
-      WHERE v.id = $1
-      GROUP BY v.id
+      FROM reservations res
+      WHERE res.vehicle_id = $1
     `;
-
-    const analyticsResult = await db.query(analyticsQuery, [vehicleId]);
+    const rentalStatsResult = await db.query(rentalStatsQuery, [vehicleId]);
 
     // Get monthly revenue trend (last 6 months)
     const trendQuery = `
@@ -222,24 +149,17 @@ const getVehicleAnalytics = async (req, res) => {
       GROUP BY TO_CHAR(res.pickup_date, 'YYYY-MM')
       ORDER BY month DESC
     `;
-
     const trendResult = await db.query(trendQuery, [vehicleId]);
 
-    // Get maintenance costs
-    const maintenanceQuery = `
-      SELECT 
-        COUNT(*) as total_maintenance,
-        COALESCE(SUM(cost), 0) as total_maintenance_cost
-      FROM maintenance_records
-      WHERE vehicle_id = $1
-    `;
-
-    const maintenanceResult = await db.query(maintenanceQuery, [vehicleId]);
-
     res.json({
-      analytics: analyticsResult.rows[0],
+      success: true,
+      analytics: {
+        ...rentalStatsResult.rows[0],
+        average_rating: vehicleStats.average_rating || 0,
+        total_reviews: vehicleStats.total_reviews || 0
+      },
       trend: trendResult.rows,
-      maintenance: maintenanceResult.rows[0]
+      maintenance: maintenanceStats
     });
   } catch (error) {
     console.error('Error fetching vehicle analytics:', error);
@@ -253,8 +173,9 @@ const getVehicleAnalytics = async (req, res) => {
 const getEarningsSummary = async (req, res) => {
   try {
     const ownerId = req.user.ownerId;
-    const { year = new Date().getFullYear() } = req.query;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
 
+    const db = require('../config/database');
     const query = `
       SELECT 
         TO_CHAR(payment_period_start, 'Mon') as month,
@@ -288,6 +209,7 @@ const getEarningsSummary = async (req, res) => {
     const ytdResult = await db.query(ytdQuery, [ownerId, year]);
 
     res.json({
+      success: true,
       monthlyEarnings: result.rows,
       yearToDate: ytdResult.rows[0]
     });
@@ -297,10 +219,143 @@ const getEarningsSummary = async (req, res) => {
   }
 };
 
+// @desc    Calculate payment for period (Admin only)
+// @route   POST /api/owners/:ownerId/calculate-payment
+// @access  Private (Admin)
+const calculateOwnerPayment = async (req, res) => {
+  try {
+    const { ownerId } = req.params;
+    const { startDate, endDate } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Start date and end date are required' });
+    }
+
+    const calculation = await ownerPaymentModel.calculateForPeriod(ownerId, startDate, endDate);
+
+    if (!calculation) {
+      return res.status(404).json({ error: 'Owner not found or no rentals in period' });
+    }
+
+    res.json({
+      success: true,
+      calculation: {
+        ...calculation,
+        period: {
+          start: startDate,
+          end: endDate
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error calculating owner payment:', error);
+    res.status(500).json({ error: 'Failed to calculate payment' });
+  }
+};
+
+// @desc    Create owner payment record (Admin only)
+// @route   POST /api/owners/payments
+// @access  Private (Admin)
+const createOwnerPayment = async (req, res) => {
+  try {
+    const {
+      ownerId,
+      paymentPeriodStart,
+      paymentPeriodEnd,
+      totalRentals,
+      totalRentalIncome,
+      ownerShare,
+      renteaseShare,
+      deductions,
+      deductionNotes,
+      netPayment,
+      paymentMethod,
+      gcashNumber,
+      gcashReference,
+      notes
+    } = req.body;
+
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (!ownerId || !paymentPeriodStart || !paymentPeriodEnd || !ownerShare || !renteaseShare) {
+      return res.status(400).json({ 
+        error: 'Owner ID, period dates, owner share, and RentEase share are required' 
+      });
+    }
+
+    const payment = await ownerPaymentModel.create({
+      owner_id: ownerId,
+      payment_period_start: paymentPeriodStart,
+      payment_period_end: paymentPeriodEnd,
+      total_rentals: totalRentals || 0,
+      total_rental_income: totalRentalIncome || 0,
+      owner_share: ownerShare,
+      rentease_share: renteaseShare,
+      deductions: deductions || 0,
+      deduction_notes: deductionNotes,
+      net_payment: netPayment || ownerShare - (deductions || 0),
+      payment_method: paymentMethod,
+      gcash_number: gcashNumber,
+      gcash_reference: gcashReference,
+      payment_status: 'pending',
+      paid_by: userId,
+      notes
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Owner payment record created',
+      payment
+    });
+  } catch (error) {
+    console.error('Error creating owner payment:', error);
+    res.status(500).json({ error: 'Failed to create payment record' });
+  }
+};
+
+// @desc    Update owner payment status (Admin only)
+// @route   PATCH /api/owners/payments/:id/status
+// @access  Private (Admin)
+const updatePaymentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+    const userId = req.user.id;
+
+    if (!['pending', 'paid'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const payment = await ownerPaymentModel.updateStatus(id, status, userId, notes);
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment record not found' });
+    }
+
+    // If marking as paid, update owner's total_earned
+    if (status === 'paid') {
+      await vehicleOwnerModel.updateEarnings(payment.owner_id, payment.owner_share);
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment status updated',
+      payment
+    });
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    res.status(500).json({ error: 'Failed to update payment status' });
+  }
+};
+
 module.exports = {
   getOwnerDashboard,
   getOwnerVehicles,
   getOwnerPayments,
   getVehicleAnalytics,
-  getEarningsSummary
+  getEarningsSummary,
+  calculateOwnerPayment,
+  createOwnerPayment,
+  updatePaymentStatus
 };

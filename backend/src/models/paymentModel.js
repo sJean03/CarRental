@@ -39,19 +39,46 @@ const paymentModel = {
     return result.rows[0];
   },
 
+  // Create refund record (negative payment)
+  async createRefund(refundData) {
+    const query = `
+      INSERT INTO payments (
+        reservation_id,
+        amount,
+        payment_method,
+        payment_type,
+        payment_status,
+        received_by,
+        payment_date,
+        notes
+      )
+      VALUES ($1, -$2, $3, 'refund', 'completed', $4, CURRENT_TIMESTAMP, $5)
+      RETURNING *
+    `;
+    
+    const values = [
+      refundData.reservation_id,
+      refundData.amount,
+      refundData.payment_method,
+      refundData.received_by,
+      refundData.notes || 'Refund processed'
+    ];
+    
+    const result = await db.query(query, values);
+    return result.rows[0];
+  },
+
   // Get payment by ID
   async findById(id) {
     const query = `
       SELECT 
         p.*,
         r.booking_reference,
-        r.total_amount as booking_total,
-        r.deposit_amount as booking_deposit,
-        u.first_name as staff_first_name,
-        u.last_name as staff_last_name
+        u.first_name as received_by_first_name,
+        u.last_name as received_by_last_name
       FROM payments p
-      LEFT JOIN reservations r ON p.reservation_id = r.id
-      LEFT JOIN users u ON p.received_by = u.id
+      LEFT JOIN reservations r ON r.id = p.reservation_id
+      LEFT JOIN users u ON u.id = p.received_by
       WHERE p.id = $1
     `;
     const result = await db.query(query, [id]);
@@ -63,10 +90,10 @@ const paymentModel = {
     const query = `
       SELECT 
         p.*,
-        u.first_name as staff_first_name,
-        u.last_name as staff_last_name
+        u.first_name as received_by_first_name,
+        u.last_name as received_by_last_name
       FROM payments p
-      LEFT JOIN users u ON p.received_by = u.id
+      LEFT JOIN users u ON u.id = p.received_by
       WHERE p.reservation_id = $1
       ORDER BY p.created_at DESC
     `;
@@ -74,7 +101,7 @@ const paymentModel = {
     return result.rows;
   },
 
-  // Get all payments (admin only)
+  // Get all payments with filters
   async findAll(filters = {}) {
     let query = `
       SELECT 
@@ -87,55 +114,53 @@ const paymentModel = {
         su.first_name as staff_first_name,
         su.last_name as staff_last_name
       FROM payments p
-      LEFT JOIN reservations r ON p.reservation_id = r.id
-      LEFT JOIN users cu ON r.user_id = cu.id
-      LEFT JOIN users su ON p.received_by = su.id
+      LEFT JOIN reservations r ON r.id = p.reservation_id
+      LEFT JOIN users cu ON cu.id = r.user_id
+      LEFT JOIN users su ON su.id = p.received_by
       WHERE 1=1
     `;
-    
+
     const params = [];
     let paramIndex = 1;
 
-    // Filter by status
     if (filters.payment_status) {
       query += ` AND p.payment_status = $${paramIndex}`;
       params.push(filters.payment_status);
       paramIndex++;
     }
 
-    // Filter by payment method
     if (filters.payment_method) {
       query += ` AND p.payment_method = $${paramIndex}`;
       params.push(filters.payment_method);
       paramIndex++;
     }
 
-    // Filter by date range
     if (filters.start_date) {
       query += ` AND p.payment_date >= $${paramIndex}`;
       params.push(filters.start_date);
       paramIndex++;
     }
+
     if (filters.end_date) {
       query += ` AND p.payment_date <= $${paramIndex}`;
       params.push(filters.end_date);
       paramIndex++;
     }
 
-    query += ` ORDER BY p.created_at DESC`;
+    query += ' ORDER BY p.created_at DESC';
 
     const result = await db.query(query, params);
     return result.rows;
   },
 
-  // Update payment status (FIXED - removed updated_at)
-  async updateStatus(id, status, staffId, notes = null) {
+  // Update payment status
+  async updateStatus(id, status, staffId, notes) {
     const query = `
       UPDATE payments 
-      SET 
-        payment_status = $1,
-        received_by = $2,
-        notes = COALESCE($3, notes)
+      SET payment_status = $1, 
+          received_by = $2, 
+          notes = $3,
+          payment_date = CURRENT_TIMESTAMP
       WHERE id = $4
       RETURNING *
     `;
@@ -173,6 +198,41 @@ const paymentModel = {
     
     const { total_amount, total_paid } = result.rows[0];
     return parseFloat(total_paid) >= parseFloat(total_amount);
+  },
+
+  // Get payment statistics
+  async getStatistics(filters = {}) {
+    let query = `
+      SELECT 
+        COUNT(*) as total_payments,
+        COUNT(CASE WHEN payment_status = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN payment_status = 'verified' THEN 1 END) as verified_count,
+        COUNT(CASE WHEN payment_status = 'completed' THEN 1 END) as completed_count,
+        COUNT(CASE WHEN payment_method = 'cash' THEN 1 END) as cash_count,
+        COUNT(CASE WHEN payment_method = 'gcash' THEN 1 END) as gcash_count,
+        COALESCE(SUM(CASE WHEN payment_status IN ('verified', 'completed') THEN amount ELSE 0 END), 0) as total_revenue,
+        COALESCE(AVG(CASE WHEN payment_status IN ('verified', 'completed') THEN amount END), 0) as avg_payment
+      FROM payments
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    if (filters.start_date) {
+      query += ` AND payment_date >= ${paramIndex}`;
+      params.push(filters.start_date);
+      paramIndex++;
+    }
+
+    if (filters.end_date) {
+      query += ` AND payment_date <= ${paramIndex}`;
+      params.push(filters.end_date);
+      paramIndex++;
+    }
+
+    const result = await db.query(query, params);
+    return result.rows[0];
   }
 };
 

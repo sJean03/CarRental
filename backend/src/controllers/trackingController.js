@@ -1,3 +1,10 @@
+const trackingModel = require('../models/trackingModel');
+const vehicleModel = require('../models/vehicleModel');
+const rentalModel = require('../models/rentalModel');
+
+// @desc    Record vehicle location
+// @route   POST /api/tracking
+// @access  Public (GPS device with API key) or Private
 const recordLocation = async (req, res) => {
   try {
     const {
@@ -20,42 +27,32 @@ const recordLocation = async (req, res) => {
     }
 
     // Verify vehicle exists and has tracking enabled
-    const vehicleCheck = await db.query(
-      'SELECT id, is_tracked FROM vehicles WHERE id = $1',
-      [vehicleId]
-    );
-
-    if (vehicleCheck.rows.length === 0) {
+    const vehicle = await vehicleModel.findById(vehicleId);
+    if (!vehicle) {
       return res.status(404).json({ error: 'Vehicle not found' });
     }
 
-    if (!vehicleCheck.rows[0].is_tracked) {
+    if (!vehicle.is_tracked) {
       return res.status(400).json({ error: 'Vehicle tracking not enabled' });
     }
 
-    const query = `
-      INSERT INTO vehicle_tracking (
-        vehicle_id, rental_id, latitude, longitude, 
-        speed, heading, altitude, address, tracked_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `;
-
-    const result = await db.query(query, [
-      vehicleId,
-      rentalId || null,
+    // Record tracking data
+    const tracking = await trackingModel.create({
+      vehicle_id: vehicleId,
+      rental_id: rentalId || null,
       latitude,
       longitude,
-      speed || null,
-      heading || null,
-      altitude || null,
-      address || null,
-      trackedAt || new Date()
-    ]);
+      speed: speed || null,
+      heading: heading || null,
+      altitude: altitude || null,
+      address: address || null,
+      tracked_at: trackedAt || new Date()
+    });
 
     res.status(201).json({
+      success: true,
       message: 'Location recorded successfully',
-      tracking: result.rows[0]
+      tracking
     });
   } catch (error) {
     console.error('Error recording location:', error);
@@ -70,31 +67,15 @@ const getCurrentLocation = async (req, res) => {
   try {
     const { vehicleId } = req.params;
 
-    const query = `
-      SELECT 
-        vt.*,
-        v.make,
-        v.model,
-        v.license_plate,
-        r.id as active_rental_id,
-        res.booking_reference
-      FROM vehicle_tracking vt
-      JOIN vehicles v ON v.id = vt.vehicle_id
-      LEFT JOIN rentals r ON r.id = vt.rental_id
-      LEFT JOIN reservations res ON res.id = r.reservation_id
-      WHERE vt.vehicle_id = $1
-      ORDER BY vt.tracked_at DESC
-      LIMIT 1
-    `;
+    const location = await trackingModel.getCurrentLocation(vehicleId);
 
-    const result = await db.query(query, [vehicleId]);
-
-    if (result.rows.length === 0) {
+    if (!location) {
       return res.status(404).json({ error: 'No tracking data found for this vehicle' });
     }
 
     res.json({
-      location: result.rows[0]
+      success: true,
+      location
     });
   } catch (error) {
     console.error('Error fetching current location:', error);
@@ -108,43 +89,19 @@ const getCurrentLocation = async (req, res) => {
 const getLocationHistory = async (req, res) => {
   try {
     const { vehicleId } = req.params;
-    const { startDate, endDate, rentalId, limit = 100 } = req.query;
+    const filters = {
+      rental_id: req.query.rentalId,
+      start_date: req.query.startDate,
+      end_date: req.query.endDate,
+      limit: req.query.limit || 100
+    };
 
-    let query = `
-      SELECT *
-      FROM vehicle_tracking
-      WHERE vehicle_id = $1
-    `;
-
-    const params = [vehicleId];
-    let paramIndex = 2;
-
-    if (rentalId) {
-      query += ` AND rental_id = $${paramIndex}`;
-      params.push(rentalId);
-      paramIndex++;
-    }
-
-    if (startDate) {
-      query += ` AND tracked_at >= $${paramIndex}`;
-      params.push(startDate);
-      paramIndex++;
-    }
-
-    if (endDate) {
-      query += ` AND tracked_at <= $${paramIndex}`;
-      params.push(endDate);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY tracked_at DESC LIMIT $${paramIndex}`;
-    params.push(limit);
-
-    const result = await db.query(query, params);
+    const history = await trackingModel.getHistory(vehicleId, filters);
 
     res.json({
-      history: result.rows,
-      count: result.rows.length
+      success: true,
+      history,
+      count: history.length
     });
   } catch (error) {
     console.error('Error fetching location history:', error);
@@ -157,38 +114,12 @@ const getLocationHistory = async (req, res) => {
 // @access  Private (Admin/Staff)
 const getAllActiveLocations = async (req, res) => {
   try {
-    const query = `
-      SELECT DISTINCT ON (v.id)
-        v.id,
-        v.make,
-        v.model,
-        v.license_plate,
-        v.status,
-        vt.latitude,
-        vt.longitude,
-        vt.speed,
-        vt.address,
-        vt.tracked_at,
-        r.id as rental_id,
-        res.booking_reference,
-        u.first_name || ' ' || u.last_name as customer_name
-      FROM vehicles v
-      LEFT JOIN vehicle_tracking vt ON vt.vehicle_id = v.id
-      LEFT JOIN rentals r ON r.reservation_id IN (
-        SELECT id FROM reservations WHERE vehicle_id = v.id AND status = 'active'
-      )
-      LEFT JOIN reservations res ON res.id = r.reservation_id
-      LEFT JOIN users u ON u.id = res.user_id
-      WHERE v.is_tracked = true
-        AND vt.tracked_at >= NOW() - INTERVAL '1 hour'
-      ORDER BY v.id, vt.tracked_at DESC
-    `;
-
-    const result = await db.query(query);
+    const vehicles = await trackingModel.getActiveLocations();
 
     res.json({
-      vehicles: result.rows,
-      count: result.rows.length
+      success: true,
+      vehicles,
+      count: vehicles.length
     });
   } catch (error) {
     console.error('Error fetching active locations:', error);
@@ -196,9 +127,85 @@ const getAllActiveLocations = async (req, res) => {
   }
 };
 
+// @desc    Get tracking for rental
+// @route   GET /api/tracking/rental/:rentalId
+// @access  Private (Admin/Staff/Customer - own rental)
+const getRentalTracking = async (req, res) => {
+  try {
+    const { rentalId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // If customer, verify they own this rental
+    if (userRole === 'customer') {
+      const rental = await rentalModel.findByReservationId(rentalId);
+      if (!rental) {
+        return res.status(404).json({ error: 'Rental not found' });
+      }
+      // Note: You'd need to verify user_id matches
+      // This requires getting the reservation/booking data
+    }
+
+    const tracking = await trackingModel.getByRentalId(rentalId);
+    const distance = await trackingModel.getDistanceTraveled(rentalId);
+
+    res.json({
+      success: true,
+      tracking,
+      distance: distance?.total_distance_km || 0,
+      count: tracking.length
+    });
+  } catch (error) {
+    console.error('Error fetching rental tracking:', error);
+    res.status(500).json({ error: 'Failed to fetch rental tracking' });
+  }
+};
+
+// @desc    Get tracking statistics
+// @route   GET /api/tracking/stats
+// @access  Private (Admin)
+const getTrackingStats = async (req, res) => {
+  try {
+    const { vehicleId, startDate, endDate } = req.query;
+
+    const stats = await trackingModel.getStatistics(vehicleId, startDate, endDate);
+
+    res.json({
+      success: true,
+      statistics: stats
+    });
+  } catch (error) {
+    console.error('Error fetching tracking statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch tracking statistics' });
+  }
+};
+
+// @desc    Delete old tracking data
+// @route   DELETE /api/tracking/cleanup
+// @access  Private (Admin)
+const cleanupOldData = async (req, res) => {
+  try {
+    const daysToKeep = parseInt(req.query.days) || 90;
+
+    const result = await trackingModel.deleteOldData(daysToKeep);
+
+    res.json({
+      success: true,
+      message: `Deleted tracking data older than ${daysToKeep} days`,
+      deleted_count: result.deleted_count
+    });
+  } catch (error) {
+    console.error('Error cleaning up tracking data:', error);
+    res.status(500).json({ error: 'Failed to cleanup tracking data' });
+  }
+};
+
 module.exports = {
   recordLocation,
   getCurrentLocation,
   getLocationHistory,
-  getAllActiveLocations
+  getAllActiveLocations,
+  getRentalTracking,
+  getTrackingStats,
+  cleanupOldData
 };

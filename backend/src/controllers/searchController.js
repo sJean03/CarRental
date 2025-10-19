@@ -1,3 +1,5 @@
+const db = require('../config/database');
+
 const searchVehicles = async (req, res) => {
   try {
     const {

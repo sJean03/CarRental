@@ -22,6 +22,11 @@ const paymentController = {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      // Validate payment method
+      if (!['cash', 'gcash'].includes(payment_method)) {
+        return res.status(400).json({ error: 'Invalid payment method. Must be cash or gcash' });
+      }
+
       // Verify booking belongs to user
       const booking = await bookingModel.findById(reservation_id);
       if (!booking) {
@@ -55,37 +60,26 @@ const paymentController = {
         reservation_id,
         amount,
         payment_method,
-        payment_type,
+        payment_type: payment_type || 'deposit',
         gcash_number,
         gcash_reference,
         gcash_screenshot_url,
-        payment_status: payment_method === 'cash' ? 'completed' : 'pending',
-        payment_date: new Date(),
+        payment_status: payment_method === 'cash' ? 'pending' : 'pending',
         notes
       });
 
-      // If cash payment, mark as completed immediately
-      if (payment_method === 'cash') {
-        // Check if deposit paid or fully paid, then confirm booking
-        const newTotalPaid = totalPaid + parseFloat(amount);
-        const depositAmount = parseFloat(booking.deposit_amount);
-        
-        if (newTotalPaid >= depositAmount && booking.status === 'pending_payment') {
-          await bookingModel.updateStatus(reservation_id, 'confirmed');
-        }
-      }
-
       res.status(201).json({
         success: true,
-        message: payment_method === 'cash' 
-          ? 'Cash payment recorded successfully' 
-          : 'GCash payment submitted. Awaiting verification.',
+        message: 'Payment submitted successfully. Awaiting verification.',
         payment,
         remaining_balance: remainingBalance - parseFloat(amount)
       });
     } catch (error) {
       console.error('Submit payment error:', error);
-      res.status(500).json({ error: 'Failed to submit payment', details: error.message });
+      res.status(500).json({ 
+        error: 'Failed to submit payment', 
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   },
 
@@ -93,50 +87,43 @@ const paymentController = {
   async getPaymentHistory(req, res) {
     try {
       const userId = req.user.id;
-      const userRole = req.user.role;
       const { reservation_id } = req.params;
 
-      // Get booking
-      const booking = await bookingModel.findById(reservation_id);
-      if (!booking) {
-        return res.status(404).json({ error: 'Booking not found' });
+      // Verify booking belongs to user (unless admin/staff)
+      if (req.user.role === 'customer') {
+        const booking = await bookingModel.findById(reservation_id);
+        if (!booking || booking.user_id !== userId) {
+          return res.status(403).json({ error: 'Access denied' });
+        }
       }
 
-      // Check authorization
-      if (userRole !== 'admin' && userRole !== 'staff' && booking.user_id !== userId) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-
-      // Get payments
       const payments = await paymentModel.findByReservationId(reservation_id);
       const totalPaid = await paymentModel.getTotalPaid(reservation_id);
-      const remainingBalance = parseFloat(booking.total_amount) - totalPaid;
 
       res.json({
         success: true,
-        booking_reference: booking.booking_reference,
-        total_amount: booking.total_amount,
-        deposit_amount: booking.deposit_amount,
+        reservation_id,
         total_paid: totalPaid,
-        remaining_balance: remainingBalance,
-        is_fully_paid: remainingBalance <= 0,
         payments
       });
     } catch (error) {
       console.error('Get payment history error:', error);
-      res.status(500).json({ error: 'Failed to fetch payment history', details: error.message });
+      res.status(500).json({ 
+        error: 'Failed to fetch payment history', 
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   },
 
-  // Verify GCash payment (admin/staff only) - FIXED
+  // Verify payment (admin/staff only)
   async verifyPayment(req, res) {
     try {
-      const staffId = req.user.id;
       const { id } = req.params;
+      const staffId = req.user.id;
       const { status, notes } = req.body;
 
       // Validate status
-      if (!['verified', 'completed', 'refunded'].includes(status)) {
+      if (!status || !['verified', 'completed', 'refunded'].includes(status)) {
         return res.status(400).json({ error: 'Invalid payment status' });
       }
 
@@ -168,7 +155,58 @@ const paymentController = {
       });
     } catch (error) {
       console.error('Verify payment error:', error);
-      res.status(500).json({ error: 'Failed to verify payment', details: error.message });
+      res.status(500).json({ 
+        error: 'Failed to verify payment', 
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  },
+
+  // Refund payment (admin/staff only)
+  async refundPayment(req, res) {
+    try {
+      const { id } = req.params;
+      const staffId = req.user.id;
+      const { refund_amount, refund_reason } = req.body;
+
+      // Get payment
+      const payment = await paymentModel.findById(id);
+      if (!payment) {
+        return res.status(404).json({ error: 'Payment not found' });
+      }
+
+      // Validate refund amount
+      if (!refund_amount || parseFloat(refund_amount) <= 0) {
+        return res.status(400).json({ error: 'Invalid refund amount' });
+      }
+
+      if (parseFloat(refund_amount) > parseFloat(payment.amount)) {
+        return res.status(400).json({ error: 'Refund amount cannot exceed payment amount' });
+      }
+
+      // Create refund record
+      const refund = await paymentModel.createRefund({
+        original_payment_id: id,
+        reservation_id: payment.reservation_id,
+        amount: refund_amount,
+        payment_method: payment.payment_method,
+        payment_type: 'refund',
+        payment_status: 'completed',
+        received_by: staffId,
+        notes: refund_reason
+      });
+
+      res.json({
+        success: true,
+        message: 'Refund processed successfully',
+        refund
+      });
+    } catch (error) {
+      console.error('Refund payment error:', error);
+      res.status(500).json({ 
+        error: 'Failed to process refund', 
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   },
 
@@ -191,7 +229,10 @@ const paymentController = {
       });
     } catch (error) {
       console.error('Get all payments error:', error);
-      res.status(500).json({ error: 'Failed to fetch payments', details: error.message });
+      res.status(500).json({ 
+        error: 'Failed to fetch payments', 
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   },
 
@@ -207,7 +248,10 @@ const paymentController = {
       });
     } catch (error) {
       console.error('Get pending verifications error:', error);
-      res.status(500).json({ error: 'Failed to fetch pending verifications', details: error.message });
+      res.status(500).json({ 
+        error: 'Failed to fetch pending verifications', 
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 };
