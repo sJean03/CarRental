@@ -298,6 +298,20 @@ CREATE TABLE owner_access_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Notifications (System notifications for users)
+
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    related_id UUID,
+    related_type VARCHAR(50),
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
@@ -335,6 +349,10 @@ CREATE INDEX idx_tracking_rental ON vehicle_tracking(rental_id);
 
 CREATE INDEX idx_reviews_vehicle ON reviews(vehicle_id);
 CREATE INDEX idx_reviews_user ON reviews(user_id);
+
+CREATE INDEX idx_notifications_user ON notifications(user_id);
+CREATE INDEX idx_notifications_read ON notifications(is_read);
+CREATE INDEX idx_notifications_created ON notifications(created_at);
 
 -- ============================================
 -- FUNCTIONS & TRIGGERS
