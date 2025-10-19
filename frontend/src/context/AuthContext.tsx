@@ -1,142 +1,181 @@
-'use client'
+// context/AuthContext.tsx
+'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { User, LoginCredentials, RegisterData, OwnerRegisterData, AuthContextType } from '@/types/auth'
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { authService } from '@/services';
+import type { User, LoginCredentials, RegisterData } from '@/types';
+import { toast } from 'sonner'; // or your toast library
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
+  isStaff: boolean;
+  isOwner: boolean;
+  isCustomer: boolean;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
+  refreshProfile: () => Promise<void>;
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  // Load user from localStorage on mount
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  // Initialize - Check for stored auth
   useEffect(() => {
-    const storedUser = localStorage.getItem('rentease_user')
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    }
-    setIsLoading(false)
-  }, [])
+    initializeAuth();
+  }, []);
 
-  // Login function
+  const initializeAuth = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (token && storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        
+        // Verify token is still valid
+        await verifyToken();
+      }
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+      clearAuth();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyToken = async () => {
+    try {
+      const response = await authService.getProfile();
+      if (response.success && response.data) {
+        setUser(response.data);
+        localStorage.setItem('user', JSON.stringify(response.data));
+      }
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      clearAuth();
+    }
+  };
+
   const login = async (credentials: LoginCredentials) => {
     try {
-      // TODO: Replace with actual API call
-      // For now, simulate login with mock data
+      const response = await authService.login(credentials);
       
-      // Check if user exists in localStorage (mock database)
-      const users = JSON.parse(localStorage.getItem('rentease_users') || '[]')
-      const foundUser = users.find((u: any) => 
-        u.email === credentials.email && u.password === credentials.password
-      )
+      if (response.success && response.token && response.user) {
+        // Store auth data
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        setUser(response.user);
 
-      if (!foundUser) {
-        throw new Error('Invalid email or password')
+        // Show success message
+        toast.success('Welcome back!');
+
+        // Redirect based on role
+        const { role } = response.user;
+        if (role === 'admin' || role === 'staff') {
+          router.push('/admin');
+        } else if (role === 'owner') {
+          router.push('/owner');
+        } else {
+          router.push('/dashboard');
+        }
       }
-
-      // Remove password before storing
-      const { password, ...userWithoutPassword } = foundUser
-      
-      setUser(userWithoutPassword)
-      localStorage.setItem('rentease_user', JSON.stringify(userWithoutPassword))
-    } catch (error) {
-      console.error('Login error:', error)
-      throw error
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Login failed. Please try again.';
+      toast.error(message);
+      throw new Error(message);
     }
-  }
+  };
 
-  // Register customer function
   const register = async (data: RegisterData) => {
     try {
-      // TODO: Replace with actual API call
-      const newUser: User = {
-        id: Math.random().toString(36).substr(2, 9),
-        email: data.email,
-        first_name: data.first_name,
-        last_name: data.last_name,
-        phone_number: data.phone_number,
-        date_of_birth: data.date_of_birth,
-        driver_license_number: data.driver_license_number,
-        driver_license_expiry: data.driver_license_expiry,
-        role: 'customer',
-        is_active: true,
-        created_at: new Date().toISOString()
+      const response = await authService.register(data);
+      
+      if (response.success && response.token && response.user) {
+        // Store auth data
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        setUser(response.user);
+
+        // Show success message
+        toast.success('Registration successful! Welcome to RentEase PH!');
+
+        // Redirect to dashboard
+        router.push('/dashboard');
       }
-
-      // Store in mock database
-      const users = JSON.parse(localStorage.getItem('rentease_users') || '[]')
-      users.push({ ...newUser, password: data.password })
-      localStorage.setItem('rentease_users', JSON.stringify(users))
-
-      // Auto-login after registration
-      setUser(newUser)
-      localStorage.setItem('rentease_user', JSON.stringify(newUser))
-    } catch (error) {
-      console.error('Registration error:', error)
-      throw error
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Registration failed. Please try again.';
+      toast.error(message);
+      throw new Error(message);
     }
-  }
+  };
 
-  // Register owner function
-  const registerOwner = async (data: OwnerRegisterData) => {
-    try {
-      // TODO: Replace with actual API call
-      const newUser: User = {
-        id: Math.random().toString(36).substr(2, 9),
-        email: data.email,
-        first_name: data.first_name,
-        last_name: data.last_name,
-        phone_number: data.phone_number,
-        role: 'owner',
-        is_active: true,
-        created_at: new Date().toISOString()
-      }
-
-      // Store in mock database
-      const users = JSON.parse(localStorage.getItem('rentease_users') || '[]')
-      users.push({ 
-        ...newUser, 
-        password: data.password,
-        address: data.address,
-        bank_account_number: data.bank_account_number,
-        bank_name: data.bank_name,
-        gcash_number: data.gcash_number
-      })
-      localStorage.setItem('rentease_users', JSON.stringify(users))
-
-      // Auto-login after registration
-      setUser(newUser)
-      localStorage.setItem('rentease_user', JSON.stringify(newUser))
-    } catch (error) {
-      console.error('Owner registration error:', error)
-      throw error
-    }
-  }
-
-  // Logout function
   const logout = () => {
-    setUser(null)
-    localStorage.removeItem('rentease_user')
-  }
+    clearAuth();
+    toast.info('You have been logged out');
+    router.push('/login');
+  };
+
+  const clearAuth = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
+  const refreshProfile = async () => {
+    try {
+      const response = await authService.getProfile();
+      if (response.success && response.data) {
+        setUser(response.data);
+        localStorage.setItem('user', JSON.stringify(response.data));
+      }
+    } catch (error) {
+      console.error('Failed to refresh profile:', error);
+    }
+  };
 
   const value: AuthContextType = {
     user,
+    loading,
+    isAuthenticated: !!user,
+    isAdmin: user?.role === 'admin',
+    isStaff: user?.role === 'staff',
+    isOwner: user?.role === 'owner',
+    isCustomer: user?.role === 'customer',
     login,
     register,
-    registerOwner,
     logout,
-    isAuthenticated: !!user,
-    isLoading
-  }
+    updateUser,
+    refreshProfile,
+  };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// Custom hook to use auth context
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    throw new Error('useAuth must be used within an AuthProvider');
   }
-  return context
+  return context;
 }
+
+export default AuthContext;
