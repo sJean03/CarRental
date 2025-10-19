@@ -383,8 +383,8 @@ CREATE TRIGGER calculate_deposit_trigger BEFORE INSERT ON reservations
 -- Insert admin and staff users
 -- Password: admin123 (hashed with bcrypt)
 INSERT INTO users (email, password_hash, first_name, last_name, role) VALUES
-('admin@rentease.ph', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Admin', 'RentEase', 'admin'),
-('staff@rentease.ph', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Staff', 'Member', 'staff');
+('admin@rentease.ph', '$2b$10$MIwlerjgTPHyaQTkLnbMKefXkevB8ww7zyRe5.WtqL1ogj6IoBNtK', 'Admin', 'RentEase', 'admin'),
+('staff@rentease.ph', '$2b$10$MIwlerjgTPHyaQTkLnbMKefXkevB8ww7zyRe5.WtqL1ogj6IoBNtK', 'Staff', 'Member', 'staff');
 
 -- Insert locations
 INSERT INTO locations (name, address, city, province, phone_number, email, opening_hours) VALUES
