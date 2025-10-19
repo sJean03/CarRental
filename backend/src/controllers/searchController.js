@@ -41,64 +41,64 @@ const searchVehicles = async (req, res) => {
     // Text search
     if (query) {
       sqlQuery += ` AND (
-        v.make ILIKE ${paramIndex} OR 
-        v.model ILIKE ${paramIndex} OR 
-        vc.name ILIKE ${paramIndex}
+        v.make ILIKE $${paramIndex} OR 
+        v.model ILIKE $${paramIndex} OR 
+        vc.name ILIKE $${paramIndex}
       )`;
       params.push(`%${query}%`);
       paramIndex++;
     }
 
-    // Category filter
+    // Category filter - FIXED WITH ::uuid CAST
     if (category) {
-      sqlQuery += ` AND v.category_id = ${paramIndex}`;
+      sqlQuery += ` AND v.category_id = $${paramIndex}::uuid`;
       params.push(category);
       paramIndex++;
     }
 
     // Transmission filter
     if (transmission) {
-      sqlQuery += ` AND v.transmission_type = ${paramIndex}`;
+      sqlQuery += ` AND v.transmission_type = $${paramIndex}`;
       params.push(transmission);
       paramIndex++;
     }
 
     // Fuel type filter
     if (fuelType) {
-      sqlQuery += ` AND v.fuel_type = ${paramIndex}`;
+      sqlQuery += ` AND v.fuel_type = $${paramIndex}`;
       params.push(fuelType);
       paramIndex++;
     }
 
     // Price range
     if (minPrice) {
-      sqlQuery += ` AND v.daily_rate >= ${paramIndex}`;
+      sqlQuery += ` AND v.daily_rate >= $${paramIndex}`;
       params.push(minPrice);
       paramIndex++;
     }
 
     if (maxPrice) {
-      sqlQuery += ` AND v.daily_rate <= ${paramIndex}`;
+      sqlQuery += ` AND v.daily_rate <= $${paramIndex}`;
       params.push(maxPrice);
       paramIndex++;
     }
 
     // Seating capacity
     if (minSeating) {
-      sqlQuery += ` AND v.seating_capacity >= ${paramIndex}`;
+      sqlQuery += ` AND v.seating_capacity >= $${paramIndex}`;
       params.push(minSeating);
       paramIndex++;
     }
 
     if (maxSeating) {
-      sqlQuery += ` AND v.seating_capacity <= ${paramIndex}`;
+      sqlQuery += ` AND v.seating_capacity <= $${paramIndex}`;
       params.push(maxSeating);
       paramIndex++;
     }
 
-    // Location filter
+    // Location filter - FIXED WITH ::uuid CAST
     if (location) {
-      sqlQuery += ` AND v.current_location_id = ${paramIndex}`;
+      sqlQuery += ` AND v.current_location_id = $${paramIndex}::uuid`;
       params.push(location);
       paramIndex++;
     }
@@ -109,9 +109,9 @@ const searchVehicles = async (req, res) => {
         SELECT vehicle_id FROM reservations
         WHERE status IN ('confirmed', 'active')
           AND (
-            (pickup_date <= ${paramIndex} AND dropoff_date >= ${paramIndex})
-            OR (pickup_date <= ${paramIndex + 1} AND dropoff_date >= ${paramIndex + 1})
-            OR (pickup_date >= ${paramIndex} AND dropoff_date <= ${paramIndex + 1})
+            (pickup_date <= $${paramIndex} AND dropoff_date >= $${paramIndex})
+            OR (pickup_date <= $${paramIndex + 1} AND dropoff_date >= $${paramIndex + 1})
+            OR (pickup_date >= $${paramIndex} AND dropoff_date <= $${paramIndex + 1})
           )
       )`;
       params.push(pickupDate, dropoffDate);
@@ -127,10 +127,10 @@ const searchVehicles = async (req, res) => {
     
     sqlQuery += ` ORDER BY ${sortField} ${sortOrder}`;
 
-    // Pagination
+    // Pagination - FIXED
     const offset = (page - 1) * limit;
-    sqlQuery += ` LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`;
-    params.push(limit, offset);
+    sqlQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(parseInt(limit), parseInt(offset));
 
     const result = await db.query(sqlQuery, params);
 
@@ -141,10 +141,10 @@ const searchVehicles = async (req, res) => {
       LEFT JOIN vehicle_categories vc ON vc.id = v.category_id
       WHERE v.status = 'available'
     `;
-    // Add same filters for count (without joins that affect count)
     const countResult = await db.query(countQuery);
 
     res.json({
+      success: true,
       vehicles: result.rows,
       pagination: {
         page: parseInt(page),
@@ -155,7 +155,10 @@ const searchVehicles = async (req, res) => {
     });
   } catch (error) {
     console.error('Error searching vehicles:', error);
-    res.status(500).json({ error: 'Failed to search vehicles' });
+    res.status(500).json({ 
+      error: 'Failed to search vehicles',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -250,6 +253,7 @@ const getSearchFilters = async (req, res) => {
     const seating = await db.query(seatingQuery);
 
     res.json({
+      success: true,
       categories: categories.rows,
       locations: locations.rows,
       priceRange: priceRange.rows[0],
@@ -259,7 +263,10 @@ const getSearchFilters = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching search filters:', error);
-    res.status(500).json({ error: 'Failed to fetch search filters' });
+    res.status(500).json({ 
+      error: 'Failed to fetch search filters',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
