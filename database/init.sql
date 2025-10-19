@@ -311,7 +311,6 @@ CREATE TABLE notifications (
     is_read BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 -- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
