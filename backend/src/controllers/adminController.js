@@ -1,3 +1,4 @@
+
 const rentalModel = require('../models/rentalModel');
 const bookingModel = require('../models/bookingModel');
 const vehicleModel = require('../models/vehicleModel');

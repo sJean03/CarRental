@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { use, useState, useEffect } from 'react'
 import { notFound, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -15,22 +15,26 @@ import { vehicleService } from '@/services'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-export default function VehicleDetailsPage({ params }: { params: { id: string } }) {
+export default function VehicleDetailsPage({ params }: { 
+  params: Promise<{ id: string }> 
+}) {
+
+  const { id } = use(params)
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [similarVehicles, setSimilarVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
+ useEffect(() => {
     loadVehicleData()
-  }, [params.id])
+  }, [id])
 
   const loadVehicleData = async () => {
     try {
       setLoading(true)
       
       // Fetch vehicle details
-      const vehicleResponse = await vehicleService.getVehicleById(params.id)
+      const vehicleResponse = await vehicleService.getVehicleById(id)
       // Handle both response formats: { data: Vehicle } or { vehicle: Vehicle }
       const vehicleData = vehicleResponse.data || (vehicleResponse as any).vehicle
       
