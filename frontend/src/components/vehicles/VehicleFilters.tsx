@@ -3,7 +3,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { VehicleFilters } from '@/types/vehicle'
+import { VehicleFilters } from '@/types/index'
 
 interface VehicleFiltersProps {
   filters: VehicleFilters;
@@ -29,7 +29,7 @@ export default function VehicleFiltersComponent({ filters, onFilterChange }: Veh
   const handleFuelTypeChange = (value: string) => {
     onFilterChange({ 
       ...filters, 
-      fuel_type: value === 'all' ? undefined : value as any
+      fuelType: value === 'all' ? undefined : value as any
     })
   }
 
@@ -77,7 +77,7 @@ export default function VehicleFiltersComponent({ filters, onFilterChange }: Veh
         </Select>
 
         {/* Fuel Type */}
-        <Select value={filters.fuel_type || 'all'} onValueChange={handleFuelTypeChange}>
+        <Select value={filters.fuelType || 'all'} onValueChange={handleFuelTypeChange}>
           <SelectTrigger>
             <SelectValue placeholder="Fuel Type" />
           </SelectTrigger>
