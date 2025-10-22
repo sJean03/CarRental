@@ -265,7 +265,7 @@ export default function BookingForm({ vehicleId, dailyRate, vehicleName }: Booki
                 <SelectValue placeholder="No insurance" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Insurance</SelectItem>
+                <SelectItem value="none">No Insurance</SelectItem>
                 {insurancePlans.map((plan) => (
                   <SelectItem key={plan.id} value={plan.id}>
                     {plan.name} (₱{plan.daily_rate.toLocaleString()}/day)
