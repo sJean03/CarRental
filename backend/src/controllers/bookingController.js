@@ -1,273 +1,399 @@
-const bookingModel = require('../models/bookingModel');
-const vehicleModel = require('../models/vehicleModel');
-const insuranceModel = require('../models/insuranceModel');
-const locationModel = require('../models/locationModel');
+const Booking = require('../models/Booking');
+const Car = require('../models/Car');
+const VehicleOwner = require('../models/VehicleOwner');
+const { calculateDaysBetween } = require('../utils/dateHelpers');
+const { calculateRefundAmount } = require('../utils/calculations');
+const { CANCELLATION_WINDOW_HOURS } = require('../config/constants');
+const { sendBookingConfirmation } = require('../utils/notificationService');
 
-const bookingController = {
-  // Calculate rental cost (before creating booking)
-  async calculateCost(req, res) {
-    try {
-      const { vehicle_id, pickup_date, dropoff_date, insurance_plan_id } = req.body;
+/**
+ * Create new booking
+ */
+const createBooking = async (req, res, next) => {
+  try {
+    const { car_id, pickup_date, return_date, branch_id, payment_plan, installment_months, customer_notes } = req.body;
 
-      // Validate dates
-      const pickup = new Date(pickup_date);
-      const dropoff = new Date(dropoff_date);
-      
-      if (pickup >= dropoff) {
-        return res.status(400).json({ error: 'Dropoff date must be after pickup date' });
-      }
+    // Validate dates
+    const pickupDateObj = new Date(pickup_date);
+    const returnDateObj = new Date(return_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      const numDays = Math.ceil((dropoff - pickup) / (1000 * 60 * 60 * 24));
-
-      // Get vehicle details
-      const vehicle = await vehicleModel.findById(vehicle_id);
-      if (!vehicle) {
-        return res.status(404).json({ error: 'Vehicle not found' });
-      }
-
-      // Get insurance details
-      let insuranceRate = 0;
-      if (insurance_plan_id) {
-        const insurance = await insuranceModel.findById(insurance_plan_id);
-        if (insurance) {
-          insuranceRate = parseFloat(insurance.daily_rate);
-        }
-      }
-
-      // Calculate costs
-      const costDetails = bookingModel.calculateRentalCost(
-        parseFloat(vehicle.daily_rate),
-        insuranceRate,
-        numDays
-      );
-
-      res.json({
-        success: true,
-        vehicle: {
-          id: vehicle.id,
-          make: vehicle.make,
-          model: vehicle.model,
-          daily_rate: vehicle.daily_rate
-        },
-        ...costDetails
+    if (pickupDateObj < today) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pickup date cannot be in the past'
       });
-    } catch (error) {
-      console.error('Calculate cost error:', error);
-      res.status(500).json({ error: 'Failed to calculate cost', details: error.message });
     }
-  },
 
-  // Create new booking
-  async createBooking(req, res) {
-    try {
-      const userId = req.user.id; // From JWT token
-      const {
-        vehicle_id,
-        pickup_location_id,
-        dropoff_location_id,
-        pickup_date,
-        dropoff_date,
-        insurance_plan_id,
-        booking_comments
-      } = req.body;
-
-      // Validate required fields
-      if (!vehicle_id || !pickup_location_id || !dropoff_location_id || !pickup_date || !dropoff_date) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-
-      // Validate dates
-      const pickup = new Date(pickup_date);
-      const dropoff = new Date(dropoff_date);
-      
-      if (pickup >= dropoff) {
-        return res.status(400).json({ error: 'Dropoff date must be after pickup date' });
-      }
-
-      const numDays = Math.ceil((dropoff - pickup) / (1000 * 60 * 60 * 24));
-
-      // Check vehicle availability
-      const isAvailable = await vehicleModel.checkAvailability(vehicle_id, pickup_date, dropoff_date);
-      if (!isAvailable) {
-        return res.status(400).json({ error: 'Vehicle not available for selected dates' });
-      }
-
-      // Get vehicle details
-      const vehicle = await vehicleModel.findById(vehicle_id);
-      if (!vehicle || vehicle.status !== 'available') {
-        return res.status(400).json({ error: 'Vehicle not available' });
-      }
-
-      // Get insurance details
-      let insuranceRate = 0;
-      if (insurance_plan_id) {
-        const insurance = await insuranceModel.findById(insurance_plan_id);
-        if (insurance) {
-          insuranceRate = parseFloat(insurance.daily_rate);
-        }
-      }
-
-      // Calculate costs
-      const costDetails = bookingModel.calculateRentalCost(
-        parseFloat(vehicle.daily_rate),
-        insuranceRate,
-        numDays
-      );
-
-      // Create booking
-      const booking = await bookingModel.create({
-        user_id: userId,
-        vehicle_id,
-        pickup_location_id,
-        dropoff_location_id,
-        pickup_date,
-        dropoff_date,
-        insurance_plan_id,
-        base_amount: costDetails.base_amount,
-        insurance_amount: costDetails.insurance_amount,
-        total_amount: costDetails.total_amount,
-        deposit_amount: costDetails.deposit_amount,
-        booking_comments
+    if (returnDateObj <= pickupDateObj) {
+      return res.status(400).json({
+        success: false,
+        message: 'Return date must be after pickup date'
       });
-
-      // Get full booking details
-      const bookingDetails = await bookingModel.findById(booking.id);
-
-      res.status(201).json({
-        success: true,
-        message: 'Booking created successfully',
-        booking: bookingDetails,
-        payment_info: {
-          deposit_due: costDetails.deposit_amount,
-          balance_due: costDetails.balance_due,
-          total_amount: costDetails.total_amount
-        }
-      });
-    } catch (error) {
-      console.error('Create booking error:', error);
-      res.status(500).json({ error: 'Failed to create booking', details: error.message });
     }
-  },
 
-  // Get user's bookings
-  async getMyBookings(req, res) {
-    try {
-      const userId = req.user.id;
-      const { status } = req.query;
-
-      const bookings = await bookingModel.findByUserId(userId, { status });
-
-      res.json({
-        success: true,
-        count: bookings.length,
-        bookings
+    // Check car exists and is available
+    const car = await Car.findById(car_id);
+    if (!car) {
+      return res.status(404).json({
+        success: false,
+        message: 'Car not found'
       });
-    } catch (error) {
-      console.error('Get my bookings error:', error);
-      res.status(500).json({ error: 'Failed to fetch bookings', details: error.message });
     }
-  },
 
-  // Get booking by ID
-  async getBookingById(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user.id;
-      const userRole = req.user.role;
-
-      const booking = await bookingModel.findById(id);
-
-      if (!booking) {
-        return res.status(404).json({ error: 'Booking not found' });
-      }
-
-      // Check authorization (user can only see their own bookings, unless admin/staff)
-      if (userRole !== 'admin' && userRole !== 'staff' && booking.user_id !== userId) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-
-      res.json({
-        success: true,
-        booking
+    if (car.status !== 'listed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Car is not available for booking'
       });
-    } catch (error) {
-      console.error('Get booking error:', error);
-      res.status(500).json({ error: 'Failed to fetch booking', details: error.message });
     }
-  },
 
-  // Cancel booking
-  async cancelBooking(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user.id;
-
-      const booking = await bookingModel.cancel(id, userId);
-
-      if (!booking) {
-        return res.status(400).json({ error: 'Cannot cancel booking. It may not exist or cannot be cancelled.' });
-      }
-
-      res.json({
-        success: true,
-        message: 'Booking cancelled successfully',
-        booking
+    // Check availability
+    const isAvailable = await Car.checkAvailability(car_id, pickup_date, return_date);
+    if (!isAvailable) {
+      return res.status(409).json({
+        success: false,
+        message: 'Car is not available for the selected dates'
       });
-    } catch (error) {
-      console.error('Cancel booking error:', error);
-      res.status(500).json({ error: 'Failed to cancel booking', details: error.message });
     }
-  },
 
-  // Get all bookings (admin/staff only)
-  async getAllBookings(req, res) {
-    try {
-      const { status, vehicle_id } = req.query;
+    // Create booking
+    const bookingData = {
+      car_id,
+      owner_id: car.owner_id,
+      pickup_date,
+      return_date,
+      branch_id: branch_id || car.home_branch_id,
+      daily_rate: car.daily_rate,
+      payment_plan: payment_plan || 'full',
+      installment_months: payment_plan === 'installment' ? installment_months : null,
+      customer_notes
+    };
 
-      const bookings = await bookingModel.findAll({ status, vehicle_id });
+    const booking = await Booking.create(req.user.id, bookingData);
 
-      res.json({
-        success: true,
-        count: bookings.length,
-        bookings
-      });
-    } catch (error) {
-      console.error('Get all bookings error:', error);
-      res.status(500).json({ error: 'Failed to fetch bookings', details: error.message });
-    }
-  },
-
-  // Get insurance plans
-  async getInsurancePlans(req, res) {
-    try {
-      const plans = await insuranceModel.findAll();
-
-      res.json({
-        success: true,
-        count: plans.length,
-        insurance_plans: plans
-      });
-    } catch (error) {
-      console.error('Get insurance plans error:', error);
-      res.status(500).json({ error: 'Failed to fetch insurance plans', details: error.message });
-    }
-  },
-
-  // Get locations
-  async getLocations(req, res) {
-    try {
-      const locations = await locationModel.findAll();
-
-      res.json({
-        success: true,
-        count: locations.length,
-        locations
-      });
-    } catch (error) {
-      console.error('Get locations error:', error);
-      res.status(500).json({ error: 'Failed to fetch locations', details: error.message });
-    }
+    res.status(201).json({
+      success: true,
+      message: 'Booking created successfully. Please proceed with payment.',
+      data: { booking }
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
-module.exports = bookingController;
+/**
+ * Get booking by ID
+ */
+const getBookingById = async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check authorization - customer, owner, or admin can view
+    const owner = await VehicleOwner.findByUserId(req.user.id);
+    const isOwner = owner && booking.owner_id === owner.id;
+    const isCustomer = booking.customer_id === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isCustomer && !isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to view this booking'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { booking }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get booking by reference number
+ */
+const getBookingByReference = async (req, res, next) => {
+  try {
+    const booking = await Booking.findByReference(req.params.reference);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check authorization
+    const owner = await VehicleOwner.findByUserId(req.user.id);
+    const isOwner = owner && booking.owner_id === owner.id;
+    const isCustomer = booking.customer_id === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isCustomer && !isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to view this booking'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { booking }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get current user's bookings
+ */
+const getMyBookings = async (req, res, next) => {
+  try {
+    const filters = {
+      status: req.query.status
+    };
+
+    const bookings = await Booking.findByCustomer(req.user.id, filters);
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: { bookings }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get bookings for owner's cars
+ */
+const getOwnerBookings = async (req, res, next) => {
+  try {
+    const owner = await VehicleOwner.findByUserId(req.user.id);
+
+    if (!owner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Owner profile not found'
+      });
+    }
+
+    const filters = {
+      status: req.query.status
+    };
+
+    const bookings = await Booking.findByOwner(owner.id, filters);
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: { bookings }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Cancel booking
+ */
+const cancelBooking = async (req, res, next) => {
+  try {
+    const { cancellation_reason } = req.body;
+
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check if user is the customer
+    if (booking.customer_id !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to cancel this booking'
+      });
+    }
+
+    // Check if booking can be cancelled
+    const cancellableStatuses = ['pending_payment', 'payment_confirmed', 'confirmed', 'ready_for_pickup'];
+    if (!cancellableStatuses.includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel booking with status: ${booking.status}`
+      });
+    }
+
+    // Calculate refund amount
+    const pickupDateTime = new Date(booking.pickup_date);
+    const now = new Date();
+    const hoursUntilPickup = (pickupDateTime - now) / (1000 * 60 * 60);
+    
+    const refundAmount = booking.status === 'pending_payment' 
+      ? 0 
+      : calculateRefundAmount(booking.total_amount, hoursUntilPickup, CANCELLATION_WINDOW_HOURS);
+
+    // Cancel booking
+    const cancelledBooking = await Booking.cancel(
+      req.params.id,
+      cancellation_reason || 'Customer cancellation',
+      refundAmount
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking cancelled successfully',
+      data: { 
+        booking: cancelledBooking,
+        refund_amount: refundAmount
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Owner: Confirm booking
+ */
+const confirmBooking = async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check if user is the owner
+    const owner = await VehicleOwner.findByUserId(req.user.id);
+    if (!owner || booking.owner_id !== owner.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to confirm this booking'
+      });
+    }
+
+    // Check booking status
+    if (booking.status !== 'pending_owner_confirmation') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking cannot be confirmed in current status'
+      });
+    }
+
+    const updatedBooking = await Booking.updateStatus(req.params.id, 'confirmed');
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking confirmed successfully',
+      data: { booking: updatedBooking }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update booking status (for workflow progression)
+ */
+const updateBookingStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required'
+      });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check authorization
+    const owner = await VehicleOwner.findByUserId(req.user.id);
+    const isOwner = owner && booking.owner_id === owner.id;
+    const isCustomer = booking.customer_id === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isCustomer && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to update this booking'
+      });
+    }
+
+    const updatedBooking = await Booking.updateStatus(req.params.id, status);
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking status updated successfully',
+      data: { booking: updatedBooking }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get booking statistics
+ */
+const getBookingStats = async (req, res, next) => {
+  try {
+    const filters = {};
+
+    if (req.user.role === 'owner') {
+      const owner = await VehicleOwner.findByUserId(req.user.id);
+      if (owner) {
+        filters.owner_id = owner.id;
+      }
+    } else if (req.user.role === 'customer') {
+      filters.customer_id = req.user.id;
+    }
+
+    const stats = await Booking.getStats(filters);
+
+    res.status(200).json({
+      success: true,
+      data: { stats }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  createBooking,
+  getBookingById,
+  getBookingByReference,
+  getMyBookings,
+  getOwnerBookings,
+  cancelBooking,
+  confirmBooking,
+  updateBookingStatus,
+  getBookingStats
+};

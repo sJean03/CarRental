@@ -3,110 +3,113 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
-const { errorHandler, notFound } = require('./middleware/errorHandler');
+// Import database to test connection
+const db = require('./config/database');
 
+// Import middleware
+const errorHandler = require('./middleware/errorHandler');
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const carRoutes = require('./routes/cars');
+const bookingRoutes = require('./routes/bookings');
+const paymentRoutes = require('./routes/payments');
+
+// Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Security middleware
 app.use(helmet());
-app.use(cors());
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+
+// Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware (development)
+// Request logging in development
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`, {
-      params: req.params,
-      query: req.query,
-      body: req.body
-    });
+    console.log(`${req.method} ${req.path}`);
     next();
   });
 }
 
 // Health check route
-app.get('/', (req, res) => {
-  res.json({
-    message: 'RentEase PH API',
-    version: '1.0.0',
-    status: 'running',
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'RentEase API is running',
+    timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Test database connection
-app.get('/api/health/db', async (req, res, next) => {
-  try {
-    const db = require('./config/database');
-    const result = await db.query('SELECT NOW()');
-    res.json({ 
-      status: 'ok', 
-      database: 'connected',
-      timestamp: result.rows[0].now 
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      status: 'error', 
-      database: 'disconnected',
-      message: error.message 
-    });
-  }
-});
-
 // API Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/vehicles', require('./routes/vehicles'));
-app.use('/api/bookings', require('./routes/bookings'));
-app.use('/api/payments', require('./routes/payments'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/owners', require('./routes/owner'));
-app.use('/api/maintenance', require('./routes/maintenance'));
-app.use('/api/tracking', require('./routes/tracking'));
-app.use('/api/reviews', require('./routes/reviews'));
-app.use('/api/reports', require('./routes/reports'));
-app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/dashboard', require('./routes/dashboard'));
-app.use('/api/search', require('./routes/search'));
+app.use('/api/auth', authRoutes);
+app.use('/api/cars', carRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/payments', paymentRoutes);
 
-// Additional routes for standalone resources
-app.use('/api/categories', require('./routes/categories'));
-app.use('/api/locations', require('./routes/locations'));
-app.use('/api/insurance', require('./routes/insurance'));
-
-// 404 handler - Must be AFTER all routes
-app.use(notFound);
-
-// Global error handler - Must be LAST
-app.use(errorHandler);
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to RentEase API',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      cars: '/api/cars',
+      bookings: '/api/bookings',
+      payments: '/api/payments',
+      health: '/health'
+    }
   });
 });
 
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
+
+// Global error handler (must be last)
+app.use(errorHandler);
+
 // Start server
-const server = app.listen(PORT, () => {
-  console.log('='.repeat(50));
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 CORS enabled`);
-  console.log(`🔒 Helmet security enabled`);
-  console.log('='.repeat(50));
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log('\n==============================================');
+  console.log(`🚗 RentEase API Server`);
+  console.log('==============================================');
+  console.log(`📍 Server: http://localhost:${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Database: ${process.env.DB_NAME}`);
+  console.log('==============================================');
+  console.log('Available Routes:');
+  console.log(`   POST   /api/auth/register`);
+  console.log(`   POST   /api/auth/login`);
+  console.log(`   GET    /api/auth/profile`);
+  console.log(`   GET    /api/cars`);
+  console.log(`   POST   /api/cars`);
+  console.log(`   GET    /api/bookings/my-bookings`);
+  console.log(`   POST   /api/bookings`);
+  console.log(`   POST   /api/payments/process`);
+  console.log('==============================================\n');
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
-  console.error(err.name, err.message);
-  server.close(() => {
-    process.exit(1);
-  });
+  console.error('❌ Unhandled Promise Rejection:', err);
+  // Close server & exit process
+  process.exit(1);
 });
 
 module.exports = app;

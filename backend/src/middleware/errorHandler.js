@@ -1,72 +1,66 @@
-// Custom Error Class
-class AppError extends Error {
-  constructor(message, statusCode) {
-    super(message);
-    this.statusCode = statusCode;
-    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
-    this.isOperational = true;
-
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
-
-// Global Error Handler
+/**
+ * Global error handler middleware
+ * Catches all errors and sends consistent error responses
+ */
 const errorHandler = (err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || 'error';
+  console.error('Error:', err);
 
-  // Log error details
-  console.error('Error:', {
-    message: err.message,
-    statusCode: err.statusCode,
-    stack: err.stack,
-    path: req.path,
-    method: req.method
-  });
+  // Default error
+  let statusCode = err.statusCode || 500;
+  let message = err.message || 'Internal Server Error';
 
-  if (process.env.NODE_ENV === 'development') {
-    // Development: Send full error details
-    res.status(err.statusCode).json({
-      status: err.status,
-      error: err,
-      message: err.message,
-      stack: err.stack
-    });
-  } else {
-    // Production: Send user-friendly error
-    if (err.isOperational) {
-      // Operational, trusted error: send message to client
-      res.status(err.statusCode).json({
-        status: err.status,
-        message: err.message
-      });
-    } else {
-      // Programming or unknown error: don't leak details
-      console.error('ERROR 💥:', err);
-      res.status(500).json({
-        status: 'error',
-        message: 'Something went wrong!'
-      });
+  // PostgreSQL error handling
+  if (err.code) {
+    switch (err.code) {
+      case '23505': // Unique violation
+        statusCode = 409;
+        message = 'Resource already exists';
+        if (err.detail) {
+          message = err.detail;
+        }
+        break;
+      case '23503': // Foreign key violation
+        statusCode = 400;
+        message = 'Invalid reference to related resource';
+        break;
+      case '23502': // Not null violation
+        statusCode = 400;
+        message = 'Required field is missing';
+        break;
+      case '22P02': // Invalid text representation
+        statusCode = 400;
+        message = 'Invalid data format';
+        break;
+      default:
+        message = 'Database error occurred';
     }
   }
+
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    message = 'Invalid token';
+  }
+  
+  if (err.name === 'TokenExpiredError') {
+    statusCode = 401;
+    message = 'Token expired';
+  }
+
+  // Validation errors
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = err.message;
+  }
+
+  res.status(statusCode).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV === 'development' && { 
+      stack: err.stack,
+      error: err 
+    })
+  });
 };
 
-// Async Error Wrapper (to avoid try-catch in every controller)
-const catchAsync = (fn) => {
-  return (req, res, next) => {
-    fn(req, res, next).catch(next);
-  };
-};
-
-// Not Found Handler
-const notFound = (req, res, next) => {
-  const err = new AppError(`Route ${req.originalUrl} not found`, 404);
-  next(err);
-};
-
-module.exports = {
-  AppError,
-  errorHandler,
-  catchAsync,
-  notFound
-};
+module.exports = errorHandler;
