@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # PostgreSQL Database
   postgres:
@@ -21,7 +23,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis (for sessions and GPS tracking cache)
+  # Redis (for sessions and caching)
   redis:
     image: redis:7-alpine
     container_name: rentease-redis
@@ -38,47 +40,70 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API (placeholder - we'll build this next)
-  # backend:
-  #   build: ./backend
-  #   container_name: rentease-api
-  #   restart: unless-stopped
-  #   environment:
-  #     NODE_ENV: development
-  #     DATABASE_URL: postgresql://rentease:rentease123@postgres:5432/rentease_ph
-  #     REDIS_URL: redis://redis:6379
-  #     JWT_SECRET: your_jwt_secret_here_change_in_production
-  #     PORT: 5000
-  #   ports:
-  #     - "5000:5000"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend:/app
-  #     - /app/node_modules
-  #   networks:
-  #     - rentease-network
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rentease-api
+    restart: unless-stopped
+    environment:
+      # Database
+      DATABASE_URL: postgresql://rentease:rentease123@postgres:5432/rentease_ph
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: rentease_ph
+      DB_USER: rentease
+      DB_PASSWORD: rentease123
+      # Server
+      NODE_ENV: development
+      PORT: 5000
+      # Auth
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-rentease-2025
+      JWT_EXPIRE: 7d
+      BCRYPT_ROUNDS: 10
+      # Frontend URL (for CORS)
+      FRONTEND_URL: http://localhost:3000
+      # Platform Settings
+      PLATFORM_FEE_PERCENTAGE: 10
+      LATE_FEE_MULTIPLIER: 1.0
+      WAREHOUSE_BASE_FEE: 2000
+      CANCELLATION_HOURS_THRESHOLD: 24
+      # Mock Payment
+      MOCK_PAYMENT_ENABLED: true
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rentease-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # Frontend (placeholder - we'll build this next)
-  # frontend:
-  #   build: ./frontend
-  #   container_name: rentease-frontend
-  #   restart: unless-stopped
-  #   environment:
-  #     NEXT_PUBLIC_API_URL: http://localhost:5000
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - backend
-  #   volumes:
-  #     - ./frontend:/app
-  #     - /app/node_modules
-  #     - /app/.next
-  #   networks:
-  #     - rentease-network
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rentease-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000/api
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - rentease-network
 
 volumes:
   postgres_data:

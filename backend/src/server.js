@@ -14,6 +14,11 @@ const authRoutes = require('./routes/auth');
 const carRoutes = require('./routes/cars');
 const bookingRoutes = require('./routes/bookings');
 const paymentRoutes = require('./routes/payments');
+const notificationRoutes = require('./routes/notifications');
+const addressRoutes = require('./routes/addresses');
+const damageRoutes = require('./routes/damages');
+const ownerRoutes = require('./routes/owner');
+const locationRoutes = require('./routes/locations');
 
 // Initialize Express app
 const app = express();
@@ -54,6 +59,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/cars', carRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/addresses', addressRoutes);
+app.use('/api/damages', damageRoutes);
+app.use('/api/owner', ownerRoutes);
+app.use('/api/locations', locationRoutes);
 
 // Root route
 app.get('/', (req, res) => {
