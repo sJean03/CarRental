@@ -1,131 +1,65 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="flex flex-col">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-b from-primary/10 to-background py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Rent a Car in the Philippines
-            </h1>
-            <p className="text-xl text-muted-foreground mb-8">
-              Affordable, reliable, and convenient car rental service. Choose from our wide selection of vehicles.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" asChild>
-                <Link href="/vehicles">Browse Vehicles</Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/register-owner">Lease Your Vehicle</Link>
-              </Button>
-            </div>
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+        <Image
+          className="dark:invert"
+          src="/next.svg"
+          alt="Next.js logo"
+          width={100}
+          height={20}
+          priority
+        />
+        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
+            To get started, edit the page.tsx file.
+          </h1>
+          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
+            Looking for a starting point or more instructions? Head over to{" "}
+            <a
+              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+              className="font-medium text-zinc-950 dark:text-zinc-50"
+            >
+              Templates
+            </a>{" "}
+            or the{" "}
+            <a
+              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+              className="font-medium text-zinc-950 dark:text-zinc-50"
+            >
+              Learning
+            </a>{" "}
+            center.
+          </p>
         </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card>
-              <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-2xl font-bold text-primary">1</span>
-                </div>
-                <CardTitle>Choose Your Vehicle</CardTitle>
-                <CardDescription>
-                  Browse our selection of cars and pick the one that fits your needs
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-2xl font-bold text-primary">2</span>
-                </div>
-                <CardTitle>Book & Pay</CardTitle>
-                <CardDescription>
-                  Select your dates and location. Pay via Cash or GCash
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-2xl font-bold text-primary">3</span>
-                </div>
-                <CardTitle>Pick Up & Drive</CardTitle>
-                <CardDescription>
-                  Pick up your vehicle at our branch and enjoy your journey
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
+        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
+          <a
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
+            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Image
+              className="dark:invert"
+              src="/vercel.svg"
+              alt="Vercel logomark"
+              width={16}
+              height={16}
+            />
+            Deploy Now
+          </a>
+          <a
+            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
+            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Documentation
+          </a>
         </div>
-      </section>
-
-      {/* Featured Vehicles Section */}
-      <section className="py-20 bg-muted/50">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-12">
-            <h2 className="text-3xl font-bold">Featured Vehicles</h2>
-            <Button variant="outline" asChild>
-              <Link href="/vehicles">View All</Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Placeholder cards - we'll make these dynamic later */}
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="overflow-hidden">
-                <div className="h-48 bg-muted flex items-center justify-center">
-                  <span className="text-muted-foreground">Vehicle Image</span>
-                </div>
-                <CardHeader>
-                  <CardTitle>Toyota Vios 2020</CardTitle>
-                  <CardDescription>Sedan • Automatic • 5 Seats</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-2xl font-bold">₱2,500</p>
-                      <p className="text-sm text-muted-foreground">per day</p>
-                    </div>
-                    <Button asChild>
-                      <Link href="/vehicles/1">Book Now</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <Card className="bg-primary text-primary-foreground">
-            <CardHeader className="text-center">
-              <CardTitle className="text-3xl mb-4">Own a Vehicle?</CardTitle>
-              <CardDescription className="text-primary-foreground/80 text-lg">
-                Lease your vehicle to RentEase and earn monthly income. We handle everything!
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-              <Button size="lg" variant="secondary" asChild>
-                <Link href="/register-owner">Learn More</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+      </main>
     </div>
-  )
+  );
 }
