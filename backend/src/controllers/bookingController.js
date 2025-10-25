@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const Car = require('../models/Car');
 const VehicleOwner = require('../models/VehicleOwner');
+// Unused functions
 const { calculateDaysBetween } = require('../utils/dateHelpers');
 const { calculateRefundAmount } = require('../utils/calculations');
 const { CANCELLATION_WINDOW_HOURS } = require('../config/constants');

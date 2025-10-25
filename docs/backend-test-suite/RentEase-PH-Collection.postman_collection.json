@@ -1,670 +1,1201 @@
 {
-  "info": {
-    "name": "RentEase-PH API - FINAL (v3.0)",
-    "description": "Final fixed collection - All tests passing!",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "🏥 Health Check",
-      "item": [
-        {
-          "name": "Server Health",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Server running', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/"
-          }
-        },
-        {
-          "name": "Database Connection",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Database connected', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/health/db"
-          }
-        }
-      ]
-    },
-    {
-      "name": "🔐 Authentication",
-      "item": [
-        {
-          "name": "Login Admin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Admin logged in', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "    const json = pm.response.json();",
-                  "    pm.environment.set('adminToken', json.token);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@rentease.ph\",\n  \"password\": \"admin123\"\n}"
-            },
-            "url": "{{baseUrl}}/api/auth/login"
-          }
-        },
-        {
-          "name": "Register Customer",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Customer registration handled', () => {",
-                  "    pm.expect([201, 400]).to.include(pm.response.code);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"customer@test.com\",\n  \"password\": \"password123\",\n  \"first_name\": \"Test\",\n  \"last_name\": \"Customer\",\n  \"phone_number\": \"09171234567\"\n}"
-            },
-            "url": "{{baseUrl}}/api/auth/register"
-          }
-        },
-        {
-          "name": "Login Customer",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Customer logged in', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "    const json = pm.response.json();",
-                  "    pm.environment.set('customerToken', json.token);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"customer@test.com\",\n  \"password\": \"password123\"\n}"
-            },
-            "url": "{{baseUrl}}/api/auth/login"
-          }
-        }
-      ]
-    },
-    {
-      "name": "📍 Setup Data",
-      "item": [
-        {
-          "name": "Get Locations",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Locations loaded', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "    const json = pm.response.json();",
-                  "    if (json.locations && json.locations.length > 0) {",
-                  "        pm.environment.set('locationId', json.locations[0].id);",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/locations"
-          }
-        },
-        {
-          "name": "Get Categories",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Categories loaded', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "    const json = pm.response.json();",
-                  "    if (json.categories && json.categories.length > 0) {",
-                  "        pm.environment.set('categoryId', json.categories[0].id);",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/categories"
-          }
-        },
-        {
-          "name": "Get Insurance",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Insurance loaded', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "    const json = pm.response.json();",
-                  "    if (json.insurancePlans && json.insurancePlans.length > 0) {",
-                  "        pm.environment.set('insuranceId', json.insurancePlans[0].id);",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/insurance"
-          }
-        }
-      ]
-    },
-    {
-      "name": "🚗 Vehicles",
-      "item": [
-        {
-          "name": "Get All Vehicles",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Vehicles retrieved', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "    const json = pm.response.json();",
-                  "    if (json.vehicles && json.vehicles.length > 0) {",
-                  "        pm.environment.set('vehicleId', json.vehicles[0].id);",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/vehicles"
-          }
-        },
-        {
-          "name": "Get Vehicle by ID",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Vehicle found', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/vehicles/{{vehicleId}}"
-          }
-        },
-        {
-          "name": "Check Availability",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Availability checked', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}/availability?pickup_date=2025-12-01&dropoff_date=2025-12-05",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "vehicles", "{{vehicleId}}", "availability"],
-              "query": [
-                {"key": "pickup_date", "value": "2025-12-01"},
-                {"key": "dropoff_date", "value": "2025-12-05"}
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "🔧 Vehicle CRUD",
-      "item": [
-        {
-          "name": "Create Vehicle",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Vehicle created', () => {",
-                  "    pm.response.to.have.status(201);",
-                  "    const json = pm.response.json();",
-                  "    if (json.vehicle) {",
-                  "        pm.environment.set('newVehicleId', json.vehicle.id);",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {"key": "Content-Type", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{adminToken}}"}
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"vehicle_identification_number\": \"TEST-{{$timestamp}}\",\n  \"make\": \"Toyota\",\n  \"model\": \"Test Vios\",\n  \"year\": 2024,\n  \"color\": \"White\",\n  \"license_plate\": \"TST-{{$randomInt}}\",\n  \"category_id\": \"{{categoryId}}\",\n  \"transmission_type\": \"automatic\",\n  \"fuel_type\": \"petrol\",\n  \"seating_capacity\": 5,\n  \"daily_rate\": 1500.00,\n  \"hourly_late_fee\": 150.00\n}"
-            },
-            "url": "{{baseUrl}}/api/vehicles"
-          }
-        },
-        {
-          "name": "Update Vehicle",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Vehicle updated', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "PUT",
-            "header": [
-              {"key": "Content-Type", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{adminToken}}"}
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"daily_rate\": 1600.00,\n  \"color\": \"Silver\"\n}"
-            },
-            "url": "{{baseUrl}}/api/vehicles/{{newVehicleId}}"
-          }
-        },
-        {
-          "name": "Update Status",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status updated', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {"key": "Content-Type", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{adminToken}}"}
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"available\"\n}"
-            },
-            "url": "{{baseUrl}}/api/vehicles/{{newVehicleId}}/status"
-          }
-        }
-      ]
-    },
-    {
-      "name": "📅 Bookings",
-      "item": [
-        {
-          "name": "Calculate Cost",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Cost calculated', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {"key": "Content-Type", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{customerToken}}"}
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"vehicle_id\": \"{{vehicleId}}\",\n  \"pickup_date\": \"2025-12-01T10:00:00\",\n  \"dropoff_date\": \"2025-12-05T10:00:00\",\n  \"insurance_plan_id\": \"{{insuranceId}}\"\n}"
-            },
-            "url": "{{baseUrl}}/api/bookings/calculate-cost"
-          }
-        },
-        {
-          "name": "Create Booking",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Booking created', () => {",
-                  "    pm.response.to.have.status(201);",
-                  "    const json = pm.response.json();",
-                  "    if (json.booking) {",
-                  "        pm.environment.set('bookingId', json.booking.id);",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {"key": "Content-Type", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{customerToken}}"}
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"vehicle_id\": \"{{vehicleId}}\",\n  \"pickup_location_id\": \"{{locationId}}\",\n  \"dropoff_location_id\": \"{{locationId}}\",\n  \"pickup_date\": \"2025-12-01T10:00:00\",\n  \"dropoff_date\": \"2025-12-05T10:00:00\",\n  \"insurance_plan_id\": \"{{insuranceId}}\",\n  \"booking_comments\": \"Test booking\"\n}"
-            },
-            "url": "{{baseUrl}}/api/bookings"
-          }
-        },
-        {
-          "name": "Get My Bookings",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Bookings retrieved', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{customerToken}}"}],
-            "url": "{{baseUrl}}/api/bookings/my-bookings"
-          }
-        }
-      ]
-    },
-    {
-      "name": "💰 Payments",
-      "item": [
-        {
-          "name": "Submit Payment",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Payment submitted', () => {",
-                  "    pm.response.to.have.status(201);",
-                  "    const json = pm.response.json();",
-                  "    if (json.payment) {",
-                  "        pm.environment.set('paymentId', json.payment.id);",
-                  "    }",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {"key": "Content-Type", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{customerToken}}"}
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"{{bookingId}}\",\n  \"amount\": 2000.00,\n  \"payment_method\": \"gcash\",\n  \"payment_type\": \"deposit\",\n  \"gcash_number\": \"09171234567\",\n  \"gcash_reference\": \"GC{{$timestamp}}\"\n}"
-            },
-            "url": "{{baseUrl}}/api/payments"
-          }
-        },
-        {
-          "name": "Get Payment History",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('History retrieved', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{customerToken}}"}],
-            "url": "{{baseUrl}}/api/payments/booking/{{bookingId}}"
-          }
-        },
-        {
-          "name": "Get Pending (Admin)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Pending retrieved', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}],
-            "url": "{{baseUrl}}/api/payments/pending"
-          }
-        },
-        {
-          "name": "Verify Payment (Admin)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Payment verified', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {"key": "Content-Type", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{adminToken}}"}
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"verified\",\n  \"notes\": \"Verified\"\n}"
-            },
-            "url": "{{baseUrl}}/api/payments/{{paymentId}}/verify"
-          }
-        }
-      ]
-    },
-    {
-      "name": "🔍 Search",
-      "item": [
-        {
-          "name": "Get Filters",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Filters loaded', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/search/filters"
-          }
-        },
-        {
-          "name": "Search Vehicles",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Search successful', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/search/vehicles?minPrice=1000&maxPrice=5000",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "search", "vehicles"],
-              "query": [
-                {"key": "minPrice", "value": "1000"},
-                {"key": "maxPrice", "value": "5000"}
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "📊 Dashboard",
-      "item": [
-        {
-          "name": "Admin Dashboard",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Dashboard loaded', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}],
-            "url": "{{baseUrl}}/api/dashboard/admin"
-          }
-        },
-        {
-          "name": "Customer Dashboard",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Dashboard loaded', () => {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [{"key": "Authorization", "value": "Bearer {{customerToken}}"}],
-            "url": "{{baseUrl}}/api/dashboard/customer"
-          }
-        }
-      ]
-    }
-  ],
-  "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:5000",
-      "type": "string"
-    }
-  ]
+	"info": {
+		"_postman_id": "rentease-api-collection",
+		"name": "RentEase Marketplace API",
+		"description": "Complete API testing suite for RentEase P2P Car Rental Platform",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Register Customer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('customer_token', response.data.token);",
+									"    pm.environment.set('customer_id', response.data.user.id);",
+									"    pm.environment.set('customer_email', response.data.user.email);",
+									"}",
+									"",
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has token', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.have.property('token');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"customer@test.com\",\n  \"password\": \"password123\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Customer\",\n  \"phone_number\": \"+639123456789\",\n  \"role\": \"customer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Register Owner",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('owner_token', response.data.token);",
+									"    pm.environment.set('owner_id', response.data.user.id);",
+									"    pm.environment.set('owner_email', response.data.user.email);",
+									"}",
+									"",
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"owner@test.com\",\n  \"password\": \"password123\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Owner\",\n  \"phone_number\": \"+639987654321\",\n  \"role\": \"owner\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('admin_token', response.data.token);",
+									"    pm.environment.set('admin_id', response.data.user.id);",
+									"}",
+									"",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@rentease.ph\",\n  \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login Customer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"customer@test.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login Owner",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"owner@test.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "profile"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"John Updated\",\n  \"phone_number\": \"+639111111111\",\n  \"driver_license_number\": \"DL12345678\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "profile"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"current_password\": \"password123\",\n  \"new_password\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "change-password"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🚗 Cars",
+			"item": [
+				{
+					"name": "Get All Cars",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cars",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Cars - Automatic",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cars?transmission=automatic&min_price=1000&max_price=3000",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars"],
+							"query": [
+								{
+									"key": "transmission",
+									"value": "automatic"
+								},
+								{
+									"key": "min_price",
+									"value": "1000"
+								},
+								{
+									"key": "max_price",
+									"value": "3000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Cars - by Make",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cars?search=toyota",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars"],
+							"query": [
+								{
+									"key": "search",
+									"value": "toyota"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Car Listing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('car_id', response.data.car.id);",
+									"}",
+									"",
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Get category_id from database first",
+									"// You'll need to set this manually or via a pre-request script"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{owner_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"make\": \"Toyota\",\n  \"model\": \"Vios\",\n  \"year\": 2022,\n  \"color\": \"White\",\n  \"license_plate\": \"ABC1234\",\n  \"vin\": \"1HGBH41JXMN109186\",\n  \"category_id\": \"{{category_id}}\",\n  \"transmission\": \"automatic\",\n  \"fuel_type\": \"petrol\",\n  \"seating_capacity\": 5,\n  \"daily_rate\": 1500,\n  \"description\": \"Well-maintained sedan perfect for city driving\",\n  \"features\": [\"GPS\", \"Bluetooth\", \"Backup Camera\", \"USB Charging\"],\n  \"rules\": \"No smoking, return with full tank\",\n  \"image_urls\": [\"https://via.placeholder.com/400x300?text=Toyota+Vios\"],\n  \"storage_option\": \"warehouse\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cars",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Car by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cars/{{car_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "{{car_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Cars (Owner)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{owner_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cars/my-cars",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "my-cars"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check Car Availability",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cars/{{car_id}}/availability?pickup_date=2025-11-01&return_date=2025-11-05",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "{{car_id}}", "availability"],
+							"query": [
+								{
+									"key": "pickup_date",
+									"value": "2025-11-01"
+								},
+								{
+									"key": "return_date",
+									"value": "2025-11-05"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Blocked Dates",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cars/{{car_id}}/blocked-dates",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "{{car_id}}", "blocked-dates"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Block Dates (Owner)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{owner_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"blocked_from\": \"2025-12-01\",\n  \"blocked_until\": \"2025-12-10\",\n  \"reason\": \"Personal use - Family vacation\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cars/{{car_id}}/block-dates",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "{{car_id}}", "block-dates"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Car (Owner)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{owner_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"daily_rate\": 1800,\n  \"description\": \"Updated description - Recently serviced!\",\n  \"features\": [\"GPS\", \"Bluetooth\", \"Backup Camera\", \"USB Charging\", \"Dashcam\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cars/{{car_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "{{car_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Car (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"admin_notes\": \"All documents verified. Vehicle inspected. Approved for listing.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cars/{{car_id}}/approve",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "{{car_id}}", "approve"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Car (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rejection_reason\": \"Missing vehicle registration documents (OR/CR)\",\n  \"admin_notes\": \"Please upload clear copies of OR and CR\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cars/{{car_id}}/reject",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "{{car_id}}", "reject"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Car (Owner)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{owner_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cars/{{car_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cars", "{{car_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📅 Bookings",
+			"item": [
+				{
+					"name": "Create Booking - Full Payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('booking_id', response.data.booking.id);",
+									"    pm.environment.set('booking_reference', response.data.booking.booking_reference);",
+									"}",
+									"",
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"car_id\": \"{{car_id}}\",\n  \"pickup_date\": \"2025-11-01\",\n  \"return_date\": \"2025-11-05\",\n  \"payment_plan\": \"full\",\n  \"customer_notes\": \"Need early pickup at 8 AM\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Booking - Installment",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"car_id\": \"{{car_id}}\",\n  \"pickup_date\": \"2025-12-01\",\n  \"return_date\": \"2025-12-15\",\n  \"payment_plan\": \"installment\",\n  \"installment_months\": 12\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Bookings (Customer)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bookings/my-bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "my-bookings"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Bookings - Filter by Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bookings/my-bookings?status=confirmed",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "my-bookings"],
+							"query": [
+								{
+									"key": "status",
+									"value": "confirmed"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Owner Bookings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{owner_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bookings/owner-bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "owner-bookings"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Booking by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bookings/{{booking_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "{{booking_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Booking by Reference",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bookings/reference/{{booking_reference}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "reference", "{{booking_reference}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Booking (Owner)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{owner_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bookings/{{booking_id}}/confirm",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "{{booking_id}}", "confirm"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Booking Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{owner_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"active\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bookings/{{booking_id}}/status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "{{booking_id}}", "status"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Booking",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"cancellation_reason\": \"Change of plans - Need to reschedule\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bookings/{{booking_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "{{booking_id}}", "cancel"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Booking Stats",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bookings/stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bookings", "stats"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "💳 Payments",
+			"item": [
+				{
+					"name": "Process Payment - Full",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('payment_id', response.data.payment.id);",
+									"}",
+									"",
+									"pm.test('Payment processed', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"booking_id\": \"{{booking_id}}\",\n  \"payment_method\": \"credit_card\",\n  \"card_last4\": \"4242\",\n  \"card_brand\": \"Visa\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/payments/process",
+							"host": ["{{base_url}}"],
+							"path": ["api", "payments", "process"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Process Payment - Installment",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"booking_id\": \"{{booking_id}}\",\n  \"payment_method\": \"debit_card\",\n  \"card_last4\": \"1234\",\n  \"card_brand\": \"Mastercard\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/payments/process",
+							"host": ["{{base_url}}"],
+							"path": ["api", "payments", "process"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments/{{payment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "payments", "{{payment_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Booking Payments",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments/booking/{{booking_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "payments", "booking", "{{booking_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Installments",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{customer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments/booking/{{booking_id}}/installments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "payments", "booking", "{{booking_id}}", "installments"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Process Refund (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refund_amount\": 1500,\n  \"refund_reason\": \"Booking cancellation - Full refund\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/payments/{{payment_id}}/refund",
+							"host": ["{{base_url}}"],
+							"path": ["api", "payments", "{{payment_id}}", "refund"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment Stats (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments/stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "payments", "stats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Recent Payments (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payments/recent?limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "payments", "recent"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🏥 Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": ["{{base_url}}"],
+					"path": ["health"]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000"
+		}
+	]
 }
