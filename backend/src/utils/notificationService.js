@@ -97,7 +97,7 @@ const sendCarRejection = async (userId, userEmail, carDetails, reason) => {
  */
 const sendPaymentReceived = async (userId, userEmail, amount, bookingReference) => {
   const title = 'Payment Received';
-  const message = `We've received your payment of ₱${amount.toFixed(2)} for booking ${bookingReference}.`;
+  const message = `We've received your payment of ₱${amount} for booking ${bookingReference}.`;
   
   return await createNotification(
     userId,

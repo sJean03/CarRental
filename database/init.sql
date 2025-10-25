@@ -107,7 +107,7 @@ CREATE TABLE vehicle_owners (
     tax_id VARCHAR(50),
     bank_account_number VARCHAR(100),
     bank_name VARCHAR(100),
-    preferred_payout_method payment_method DEFAULT 'debit',
+    preferred_payout_method payment_method DEFAULT 'debit_card',
     total_earnings DECIMAL(12,2) DEFAULT 0,
     total_rentals INT DEFAULT 0,
     average_rating DECIMAL(3,2) DEFAULT 0,
