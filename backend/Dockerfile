@@ -1,5 +1,5 @@
 # Backend Dockerfile for RentEase API
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install wget for health check
 RUN apk add --no-cache wget
