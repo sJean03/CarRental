@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Car as CarIcon, DollarSign, CreditCard, TrendingUp, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatCurrency, formatCurrencyFull } from '@/lib/utils/formatNumber';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -99,8 +100,11 @@ export default function AdminDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ₱{stats?.total_revenue.toLocaleString() || 0}
+            <div
+              className="text-2xl font-bold truncate"
+              title={formatCurrencyFull(stats?.total_revenue || 0)}
+            >
+              {formatCurrency(stats?.total_revenue || 0)}
             </div>
           </CardContent>
         </Card>
@@ -131,8 +135,11 @@ export default function AdminDashboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ₱{stats?.avg_payment_amount.toLocaleString() || 0}
+            <div
+              className="text-2xl font-bold truncate"
+              title={formatCurrencyFull(stats?.avg_payment_amount || 0)}
+            >
+              {formatCurrency(stats?.avg_payment_amount || 0)}
             </div>
           </CardContent>
         </Card>
@@ -186,7 +193,12 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <p className="text-gray-600">Daily Rate</p>
-                          <p className="font-medium">₱{car.daily_rate.toLocaleString()}</p>
+                          <p
+                            className="font-medium truncate"
+                            title={formatCurrencyFull(car.daily_rate)}
+                          >
+                            {formatCurrency(car.daily_rate)}
+                          </p>
                         </div>
                       </div>
 
@@ -245,8 +257,11 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl font-bold">
-                          ₱{payment.amount.toLocaleString()}
+                        <p
+                          className="text-xl font-bold truncate"
+                          title={formatCurrencyFull(payment.amount)}
+                        >
+                          {formatCurrency(payment.amount)}
                         </p>
                         <Badge
                           className={

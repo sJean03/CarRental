@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Car as CarIcon, Calendar, DollarSign, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatCurrency, formatCurrencyFull } from '@/lib/utils/formatNumber';
 
 export default function OwnerDashboard() {
   const router = useRouter();
@@ -125,7 +126,12 @@ export default function OwnerDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₱{totalEarnings.toLocaleString()}</div>
+            <div
+              className="text-2xl font-bold truncate"
+              title={formatCurrencyFull(totalEarnings)}
+            >
+              {formatCurrency(totalEarnings)}
+            </div>
           </CardContent>
         </Card>
       </div>

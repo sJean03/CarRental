@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DollarSign, TrendingUp, Calendar, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { formatCurrency, formatCurrencyFull } from '@/lib/utils/formatNumber';
 
 interface Payout {
   id: string;
@@ -102,8 +103,11 @@ export default function OwnerEarningsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ₱{profile?.total_earnings.toLocaleString() || 0}
+            <div
+              className="text-2xl font-bold truncate"
+              title={formatCurrencyFull(profile?.total_earnings || 0)}
+            >
+              {formatCurrency(profile?.total_earnings || 0)}
             </div>
           </CardContent>
         </Card>
@@ -114,7 +118,12 @@ export default function OwnerEarningsPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₱{pendingEarnings.toLocaleString()}</div>
+            <div
+              className="text-2xl font-bold truncate"
+              title={formatCurrencyFull(pendingEarnings)}
+            >
+              {formatCurrency(pendingEarnings)}
+            </div>
           </CardContent>
         </Card>
 
@@ -124,7 +133,12 @@ export default function OwnerEarningsPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₱{paidEarnings.toLocaleString()}</div>
+            <div
+              className="text-2xl font-bold truncate"
+              title={formatCurrencyFull(paidEarnings)}
+            >
+              {formatCurrency(paidEarnings)}
+            </div>
           </CardContent>
         </Card>
 
@@ -174,33 +188,45 @@ export default function OwnerEarningsPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Rental Amount</span>
-                      <span className="font-semibold">₱{payout.rental_amount.toLocaleString()}</span>
+                      <span className="font-semibold" title={formatCurrencyFull(payout.rental_amount)}>
+                        {formatCurrency(payout.rental_amount)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-red-600">
                       <span>Platform Fee (10%)</span>
-                      <span>-₱{payout.platform_fee.toLocaleString()}</span>
+                      <span title={formatCurrencyFull(payout.platform_fee)}>
+                        -{formatCurrency(payout.platform_fee)}
+                      </span>
                     </div>
                     {payout.warehouse_fee > 0 && (
                       <div className="flex justify-between text-red-600">
                         <span>Warehouse Fee</span>
-                        <span>-₱{payout.warehouse_fee.toLocaleString()}</span>
+                        <span title={formatCurrencyFull(payout.warehouse_fee)}>
+                          -{formatCurrency(payout.warehouse_fee)}
+                        </span>
                       </div>
                     )}
                     {payout.late_fee_owner_share > 0 && (
                       <div className="flex justify-between text-green-600">
                         <span>Late Fee Share</span>
-                        <span>+₱{payout.late_fee_owner_share.toLocaleString()}</span>
+                        <span title={formatCurrencyFull(payout.late_fee_owner_share)}>
+                          +{formatCurrency(payout.late_fee_owner_share)}
+                        </span>
                       </div>
                     )}
                     {payout.damage_deduction > 0 && (
                       <div className="flex justify-between text-red-600">
                         <span>Damage Deduction</span>
-                        <span>-₱{payout.damage_deduction.toLocaleString()}</span>
+                        <span title={formatCurrencyFull(payout.damage_deduction)}>
+                          -{formatCurrency(payout.damage_deduction)}
+                        </span>
                       </div>
                     )}
                     <div className="border-t pt-2 flex justify-between font-bold text-lg">
                       <span>Net Payout</span>
-                      <span className="text-green-600">₱{payout.net_payout.toLocaleString()}</span>
+                      <span className="text-green-600" title={formatCurrencyFull(payout.net_payout)}>
+                        {formatCurrency(payout.net_payout)}
+                      </span>
                     </div>
                     {payout.paid_at && (
                       <p className="text-xs text-gray-500">
@@ -226,8 +252,8 @@ export default function OwnerEarningsPage() {
               <Card key={payout.id}>
                 {/* Same content as above */}
                 <CardContent className="pt-6">
-                  <p className="text-center text-sm text-gray-600">
-                    Payout ₱{payout.net_payout.toLocaleString()} pending
+                  <p className="text-center text-sm text-gray-600" title={formatCurrencyFull(payout.net_payout)}>
+                    Payout {formatCurrency(payout.net_payout)} pending
                   </p>
                 </CardContent>
               </Card>
@@ -248,7 +274,9 @@ export default function OwnerEarningsPage() {
                 <CardContent className="pt-6">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-semibold">₱{payout.net_payout.toLocaleString()}</p>
+                      <p className="font-semibold" title={formatCurrencyFull(payout.net_payout)}>
+                        {formatCurrency(payout.net_payout)}
+                      </p>
                       <p className="text-xs text-gray-500">
                         {format(new Date(payout.paid_at!), 'MMM dd, yyyy')}
                       </p>
