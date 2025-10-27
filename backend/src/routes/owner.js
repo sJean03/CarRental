@@ -3,15 +3,83 @@ const router = express.Router();
 const db = require('../config/database');
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
+const ownerMiddleware = require('../middleware/ownerMiddleware');
 const VehicleOwner = require('../models/VehicleOwner');
 const { USER_ROLES } = require('../config/constants');
+
+/**
+ * @route   POST /api/owner/register
+ * @desc    Register as an owner (allows customers to become owners)
+ * @access  Private (Any authenticated user)
+ */
+router.post('/register', authMiddleware, async (req, res, next) => {
+  try {
+    // Check if already has owner profile
+    const existingOwner = await VehicleOwner.findByUserId(req.user.id);
+
+    if (existingOwner) {
+      return res.status(400).json({
+        success: false,
+        message: 'You are already registered as an owner'
+      });
+    }
+
+    const { business_name, tax_id, bank_account_number, bank_name, preferred_payout_method } = req.body;
+
+    // Validate required fields
+    if (!bank_account_number || !bank_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bank account details are required'
+      });
+    }
+
+    // Create vehicle_owner profile
+    const ownerProfile = await VehicleOwner.create(req.user.id, {
+      business_name,
+      tax_id,
+      bank_account_number,
+      bank_name,
+      preferred_payout_method: preferred_payout_method || 'debit_card'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Owner registration successful! You can now list your cars.',
+      data: { profile: ownerProfile }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   GET /api/owner/check
+ * @desc    Check if user has owner profile
+ * @access  Private (Any authenticated user)
+ */
+router.get('/check', authMiddleware, async (req, res, next) => {
+  try {
+    const ownerProfile = await VehicleOwner.findByUserId(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        isOwner: !!ownerProfile,
+        profile: ownerProfile || null
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 /**
  * @route   GET /api/owner/profile
  * @desc    Get owner profile
  * @access  Private (Owner)
  */
-router.get('/profile', authMiddleware, roleMiddleware(USER_ROLES.OWNER), async (req, res, next) => {
+router.get('/profile', authMiddleware, ownerMiddleware, async (req, res, next) => {
   try {
     let owner = await VehicleOwner.findByUserId(req.user.id);
 
@@ -33,7 +101,7 @@ router.get('/profile', authMiddleware, roleMiddleware(USER_ROLES.OWNER), async (
  * @desc    Update owner profile
  * @access  Private (Owner)
  */
-router.put('/profile', authMiddleware, roleMiddleware(USER_ROLES.OWNER), async (req, res, next) => {
+router.put('/profile', authMiddleware, ownerMiddleware, async (req, res, next) => {
   try {
     let owner = await VehicleOwner.findByUserId(req.user.id);
 
@@ -66,7 +134,7 @@ router.put('/profile', authMiddleware, roleMiddleware(USER_ROLES.OWNER), async (
  * @desc    Get owner payouts
  * @access  Private (Owner)
  */
-router.get('/payouts', authMiddleware, roleMiddleware(USER_ROLES.OWNER), async (req, res, next) => {
+router.get('/payouts', authMiddleware, ownerMiddleware, async (req, res, next) => {
   try {
     const owner = await VehicleOwner.findByUserId(req.user.id);
 
@@ -102,7 +170,7 @@ router.get('/payouts', authMiddleware, roleMiddleware(USER_ROLES.OWNER), async (
  * @desc    Get owner statistics
  * @access  Private (Owner)
  */
-router.get('/stats', authMiddleware, roleMiddleware(USER_ROLES.OWNER), async (req, res, next) => {
+router.get('/stats', authMiddleware, ownerMiddleware, async (req, res, next) => {
   try {
     const owner = await VehicleOwner.findByUserId(req.user.id);
 

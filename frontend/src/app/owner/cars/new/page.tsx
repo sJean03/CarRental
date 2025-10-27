@@ -63,11 +63,11 @@ export default function NewCarPage() {
 
   // Vehicle categories from database
   const categories = [
-    { id: '90068dda-1fe6-4cb2-a9a8-573bf0a315a1', name: 'Sedan' },
-    { id: '74ede70e-599e-425f-a8ce-2c243da1d0e9', name: 'SUV' },
-    { id: '6af52e22-0121-42cc-904e-f77bfd60b13d', name: 'Hatchback' },
-    { id: '9eb93ab3-d1a5-4c8c-bc73-726c229f78a2', name: 'Van' },
-    { id: 'd807439a-e5ec-45c2-a55d-68b2eb7f950d', name: 'Luxury' },
+    { id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', name: 'Sedan' },
+    { id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'SUV' },
+    { id: 'cccccccc-cccc-cccc-cccc-cccccccccccc', name: 'Hatchback' },
+    { id: 'dddddddd-dddd-dddd-dddd-dddddddddddd', name: 'Van' },
+    { id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', name: 'Luxury' },
   ];
 
   const onSubmit = async (data: CarFormValues) => {

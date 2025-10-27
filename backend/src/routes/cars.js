@@ -3,6 +3,7 @@ const router = express.Router();
 const carController = require('../controllers/carController');
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
+const ownerMiddleware = require('../middleware/ownerMiddleware');
 const { validateCarCreate, validateUUID } = require('../middleware/validation');
 const { USER_ROLES } = require('../config/constants');
 
@@ -18,7 +19,7 @@ router.get('/', carController.getAllCars);
  * @desc    Get current user's cars (owner)
  * @access  Private (Owner)
  */
-router.get('/my-cars', authMiddleware, roleMiddleware(USER_ROLES.OWNER), carController.getMyCars);
+router.get('/my-cars', authMiddleware, ownerMiddleware, carController.getMyCars);
 
 /**
  * @route   GET /api/cars/:id
@@ -46,28 +47,28 @@ router.get('/:id/blocked-dates', validateUUID('id'), carController.getBlockedDat
  * @desc    Create new car listing
  * @access  Private (Owner)
  */
-router.post('/', authMiddleware, roleMiddleware(USER_ROLES.OWNER), validateCarCreate, carController.createCar);
+router.post('/', authMiddleware, ownerMiddleware, validateCarCreate, carController.createCar);
 
 /**
  * @route   POST /api/cars/:id/block-dates
  * @desc    Block dates for car
  * @access  Private (Owner)
  */
-router.post('/:id/block-dates', authMiddleware, roleMiddleware(USER_ROLES.OWNER), validateUUID('id'), carController.blockDates);
+router.post('/:id/block-dates', authMiddleware, ownerMiddleware, validateUUID('id'), carController.blockDates);
 
 /**
  * @route   PUT /api/cars/:id
  * @desc    Update car listing
  * @access  Private (Owner)
  */
-router.put('/:id', authMiddleware, roleMiddleware(USER_ROLES.OWNER), validateUUID('id'), carController.updateCar);
+router.put('/:id', authMiddleware, ownerMiddleware, validateUUID('id'), carController.updateCar);
 
 /**
  * @route   DELETE /api/cars/:id
  * @desc    Delete car listing
  * @access  Private (Owner)
  */
-router.delete('/:id', authMiddleware, roleMiddleware(USER_ROLES.OWNER), validateUUID('id'), carController.deleteCar);
+router.delete('/:id', authMiddleware, ownerMiddleware, validateUUID('id'), carController.deleteCar);
 
 /**
  * @route   PUT /api/cars/:id/approve
