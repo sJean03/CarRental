@@ -548,7 +548,7 @@ INSERT INTO addresses (user_id, street_address, city, province, postal_code, is_
 
 INSERT INTO vehicle_owners (id, user_id, business_name, tax_id, bank_account_number, bank_name, preferred_payout_method, total_earnings, total_rentals, average_rating, response_rate, is_verified, created_at) VALUES
 ('50000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'JDC Auto Rentals', 'TIN-123-456-789', '1234567890', 'BDO', 'debit_card', 45000.00, 5, 4.8, 98.50, true, NOW() - INTERVAL '7 days'),
-('50000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', 'Maria\'s Wheels', 'TIN-234-567-890', '2345678901', 'BPI', 'credit_card', 32000.00, 4, 4.9, 100.00, true, NOW() - INTERVAL '6 days'),
+('50000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', 'Maria''s Wheels', 'TIN-234-567-890', '2345678901', 'BPI', 'credit_card', 32000.00, 4, 4.9, 100.00, true, NOW() - INTERVAL '6 days'),
 ('50000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', 'Reyes Car Services', 'TIN-345-678-901', '3456789012', 'Metrobank', 'debit_card', 28000.00, 3, 4.7, 95.00, true, NOW() - INTERVAL '6 days'),
 ('50000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000004', NULL, 'TIN-456-789-012', '4567890123', 'Security Bank', 'debit_card', 15000.00, 2, 5.0, 100.00, true, NOW() - INTERVAL '5 days'),
 ('50000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000005', 'RM Premium Cars', 'TIN-567-890-123', '5678901234', 'BDO', 'credit_card', 52000.00, 6, 4.9, 97.00, true, NOW() - INTERVAL '5 days'),

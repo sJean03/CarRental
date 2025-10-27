@@ -140,7 +140,7 @@ export default function CarDetailPage() {
               {car.average_rating > 0 && (
                 <Badge variant="secondary" className="text-lg">
                   <Star className="w-4 h-4 mr-1 fill-yellow-400 text-yellow-400" />
-                  {car.average_rating.toFixed(1)}
+                  {car.average_rating}
                 </Badge>
               )}
             </div>

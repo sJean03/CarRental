@@ -27,7 +27,7 @@ export function CarCard({ car }: CarCardProps) {
         {car.average_rating > 0 && (
           <Badge className="absolute top-2 right-2 bg-white text-black">
             <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
-            {car.average_rating.toFixed(1)}
+            {Math.round(Number(car.average_rating) * 10) / 10}
           </Badge>
         )}
       </div>

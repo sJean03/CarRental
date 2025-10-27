@@ -114,14 +114,14 @@ export default function OwnerProfilePage() {
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <p className="text-2xl font-bold">{profile.average_rating.toFixed(1)}</p>
+                  <p className="text-2xl font-bold">{Math.round(Number(profile.average_rating) * 10) / 10}</p>
                 </div>
                 <p className="text-sm text-gray-600">Average Rating</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1">
                   <TrendingUp className="h-5 w-5 text-blue-500" />
-                  <p className="text-2xl font-bold">{profile.response_rate.toFixed(0)}%</p>
+                  <p className="text-2xl font-bold">{Math.round(Number(profile.response_rate))}%</p>
                 </div>
                 <p className="text-sm text-gray-600">Response Rate</p>
               </div>
