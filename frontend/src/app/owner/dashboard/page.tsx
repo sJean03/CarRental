@@ -266,7 +266,7 @@ export default function OwnerDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-3 gap-4 text-sm mb-4">
                       <div>
                         <p className="text-gray-600">Customer</p>
                         <p className="font-medium">
@@ -286,6 +286,9 @@ export default function OwnerDashboard() {
                         </p>
                       </div>
                     </div>
+                    <Button asChild size="sm" variant="outline" className="w-full">
+                      <Link href={`/bookings/${booking.id}`}>View Details</Link>
+                    </Button>
                   </CardContent>
                 </Card>
               ))}

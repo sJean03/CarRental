@@ -1,5 +1,6 @@
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
+const VehicleOwner = require('../models/VehicleOwner');
 const { sendPaymentReceived, sendPaymentFailed, sendBookingConfirmation } = require('../utils/notificationService');
 const { BOOKING_STATUS } = require('../config/constants');
 const User = require('../models/User');
@@ -188,8 +189,13 @@ const getBookingPayments = async (req, res, next) => {
       });
     }
 
-    // Check authorization
-    if (booking.customer_id !== req.user.id && req.user.role !== 'admin') {
+    // Check authorization - customer, owner, or admin can view
+    const owner = await VehicleOwner.findByUserId(req.user.id);
+    const isOwner = owner && booking.owner_id === owner.id;
+    const isCustomer = booking.customer_id === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isCustomer && !isOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to view these payments'
