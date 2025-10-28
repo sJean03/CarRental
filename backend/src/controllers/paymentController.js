@@ -82,13 +82,14 @@ const processPayment = async (req, res, next) => {
     if (processedPayment.status === 'completed') {
       // Update booking status
       let newBookingStatus;
-      
+
       if (booking.payment_plan === 'full') {
-        newBookingStatus = BOOKING_STATUS.PAYMENT_CONFIRMED;
+        // Full payment confirmed, now needs owner confirmation
+        newBookingStatus = BOOKING_STATUS.PENDING_OWNER_CONFIRMATION;
       } else {
-        // For installment, move to confirmed only after first payment
+        // For installment, move to pending owner confirmation only after first payment
         if (isInitialPayment) {
-          newBookingStatus = BOOKING_STATUS.PAYMENT_CONFIRMED;
+          newBookingStatus = BOOKING_STATUS.PENDING_OWNER_CONFIRMATION;
         } else {
           newBookingStatus = booking.status; // Keep current status for subsequent payments
         }

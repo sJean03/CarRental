@@ -26,7 +26,7 @@ const carSchema = z.object({
   year: z.number().min(1900).max(new Date().getFullYear() + 1),
   color: z.string().optional(),
   license_plate: z.string().min(1, 'License plate is required'),
-  category_id: z.string().uuid('Please select a category'),
+  category_id: z.string().min(1, 'Please select a category'),
   transmission: z.enum(['automatic', 'manual']),
   fuel_type: z.enum(['petrol', 'diesel', 'electric', 'hybrid']),
   seating_capacity: z.number().min(2).max(50),
@@ -192,7 +192,7 @@ export default function NewCarPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />

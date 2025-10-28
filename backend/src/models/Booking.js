@@ -154,7 +154,7 @@ class Booking {
    * Update booking status
    */
   static async updateStatus(bookingId, newStatus, additionalData = {}) {
-    const updates = ['status = $1'];
+    const updates = ['status = $1::booking_status'];
     const values = [newStatus, bookingId];
     let paramCount = 3;
 
@@ -193,11 +193,11 @@ class Booking {
    */
   static async cancel(bookingId, cancellationReason, refundAmount = 0) {
     const query = `
-      UPDATE bookings 
-      SET 
-        status = CASE 
-          WHEN $2 > 0 THEN 'cancelled_with_refund' 
-          ELSE 'cancelled' 
+      UPDATE bookings
+      SET
+        status = CASE
+          WHEN $2 > 0 THEN 'cancelled_with_refund'::booking_status
+          ELSE 'cancelled'::booking_status
         END,
         cancelled_at = CURRENT_TIMESTAMP,
         cancellation_reason = $3,
@@ -307,7 +307,7 @@ class Booking {
     }
 
     const query = `
-      SELECT 
+      SELECT
         COUNT(*) as total_bookings,
         COUNT(*) FILTER (WHERE status = 'completed') as completed_bookings,
         COUNT(*) FILTER (WHERE status IN ('cancelled', 'cancelled_with_refund')) as cancelled_bookings,
@@ -320,6 +320,139 @@ class Booking {
 
     const result = await db.query(query, values);
     return result.rows[0];
+  }
+
+  /**
+   * Get bookings ready to transition to 'active' status
+   * (confirmed bookings where pickup date/time has arrived)
+   */
+  static async getBookingsReadyForActive(bufferMinutes = 15) {
+    const query = `
+      SELECT
+        b.*,
+        c.make, c.model, c.license_plate,
+        u.email as customer_email, u.first_name as customer_first_name
+      FROM bookings b
+      JOIN cars c ON b.car_id = c.id
+      JOIN users u ON b.customer_id = u.id
+      WHERE b.status = 'confirmed'
+      AND b.pickup_date <= (CURRENT_TIMESTAMP + INTERVAL '${bufferMinutes} minutes')::date
+    `;
+
+    const result = await db.query(query);
+    return result.rows;
+  }
+
+  /**
+   * Get bookings ready to transition to 'returned' status
+   * (active bookings where return date/time has arrived)
+   */
+  static async getBookingsReadyForReturn(bufferMinutes = 15) {
+    const query = `
+      SELECT
+        b.*,
+        c.make, c.model, c.license_plate,
+        u.email as customer_email, u.first_name as customer_first_name,
+        ou.email as owner_email
+      FROM bookings b
+      JOIN cars c ON b.car_id = c.id
+      JOIN users u ON b.customer_id = u.id
+      JOIN vehicle_owners vo ON b.owner_id = vo.id
+      JOIN users ou ON vo.user_id = ou.id
+      WHERE b.status = 'active'
+      AND b.return_date <= (CURRENT_TIMESTAMP + INTERVAL '${bufferMinutes} minutes')::date
+    `;
+
+    const result = await db.query(query);
+    return result.rows;
+  }
+
+  /**
+   * Calculate late fee for a booking
+   */
+  static async calculateLateFee(bookingId, ratePerDay = 0.20, maxPercentage = 1.0) {
+    const booking = await this.findById(bookingId);
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    const returnDate = new Date(booking.return_date);
+    const currentDate = new Date();
+
+    // Calculate days late (only count full days)
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysLate = Math.floor((currentDate - returnDate) / msPerDay);
+
+    if (daysLate <= 0) {
+      return { daysLate: 0, lateFee: 0 };
+    }
+
+    // Calculate late fee
+    const dailyRate = parseFloat(booking.daily_rate);
+    const lateFeePerDay = dailyRate * ratePerDay;
+    let lateFee = lateFeePerDay * daysLate;
+
+    // Apply maximum late fee cap
+    const maxLateFee = parseFloat(booking.total_amount) * maxPercentage;
+    lateFee = Math.min(lateFee, maxLateFee);
+
+    return {
+      daysLate,
+      lateFee: Math.round(lateFee * 100) / 100, // Round to 2 decimal places
+      dailyRate,
+      lateFeePerDay: Math.round(lateFeePerDay * 100) / 100
+    };
+  }
+
+  /**
+   * Get bookings by status for lifecycle monitoring
+   */
+  static async getBookingsByStatus(statuses = []) {
+    const placeholders = statuses.map((_, idx) => `$${idx + 1}`).join(', ');
+
+    const query = `
+      SELECT
+        b.*,
+        c.make, c.model, c.license_plate,
+        u.first_name as customer_first_name, u.last_name as customer_last_name,
+        u.email as customer_email
+      FROM bookings b
+      JOIN cars c ON b.car_id = c.id
+      JOIN users u ON b.customer_id = u.id
+      WHERE b.status = ANY($1::booking_status[])
+      ORDER BY b.pickup_date DESC
+    `;
+
+    const result = await db.query(query, [statuses]);
+    return result.rows;
+  }
+
+  /**
+   * Get lifecycle statistics for admin dashboard
+   */
+  static async getLifecycleStats() {
+    const query = `
+      SELECT
+        status,
+        COUNT(*) as count,
+        SUM(total_amount) as total_value
+      FROM bookings
+      WHERE status NOT IN ('cancelled', 'cancelled_with_refund', 'completed')
+      GROUP BY status
+      ORDER BY
+        CASE status
+          WHEN 'pending_payment' THEN 1
+          WHEN 'pending_owner_confirmation' THEN 2
+          WHEN 'confirmed' THEN 3
+          WHEN 'active' THEN 4
+          WHEN 'returned' THEN 5
+          ELSE 6
+        END
+    `;
+
+    const result = await db.query(query);
+    return result.rows;
   }
 }
 

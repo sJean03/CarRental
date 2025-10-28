@@ -6,6 +6,9 @@ require('dotenv').config();
 // Import database to test connection
 const db = require('./config/database');
 
+// Import scheduler service
+const schedulerService = require('./services/schedulerService');
+
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
 
@@ -19,6 +22,7 @@ const addressRoutes = require('./routes/addresses');
 const damageRoutes = require('./routes/damages');
 const ownerRoutes = require('./routes/owner');
 const locationRoutes = require('./routes/locations');
+const adminRoutes = require('./routes/admin');
 
 // Initialize Express app
 const app = express();
@@ -64,6 +68,7 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/damages', damageRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/locations', locationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -113,6 +118,13 @@ app.listen(PORT, () => {
   console.log(`   POST   /api/bookings`);
   console.log(`   POST   /api/payments/process`);
   console.log('==============================================\n');
+
+  // Start automated scheduler
+  try {
+    schedulerService.start();
+  } catch (error) {
+    console.error('❌ Failed to start scheduler:', error);
+  }
 });
 
 // Handle unhandled promise rejections

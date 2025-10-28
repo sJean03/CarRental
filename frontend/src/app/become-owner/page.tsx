@@ -27,7 +27,7 @@ const ownerRegistrationSchema = z.object({
   tax_id: z.string().optional(),
   bank_account_number: z.string().min(5, 'Bank account number is required'),
   bank_name: z.string().min(2, 'Bank name is required'),
-  preferred_payout_method: z.enum(['credit_card', 'debit_card']).default('debit_card'),
+  preferred_payout_method: z.enum(['credit_card', 'debit_card']),
 });
 
 type OwnerRegistrationFormValues = z.infer<typeof ownerRegistrationSchema>;

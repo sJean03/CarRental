@@ -97,11 +97,14 @@ export default function BookingDetailPage() {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending_payment: 'bg-yellow-100 text-yellow-800',
+      pending_owner_confirmation: 'bg-orange-100 text-orange-800',
       payment_confirmed: 'bg-blue-100 text-blue-800',
       confirmed: 'bg-green-100 text-green-800',
       active: 'bg-purple-100 text-purple-800',
+      returned: 'bg-blue-100 text-blue-800',
       completed: 'bg-gray-100 text-gray-800',
       cancelled: 'bg-red-100 text-red-800',
+      cancelled_with_refund: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -114,10 +117,10 @@ export default function BookingDetailPage() {
 
   const bookingSteps = [
     { status: 'pending_payment', label: 'Payment Pending' },
-    { status: 'payment_confirmed', label: 'Payment Confirmed' },
-    { status: 'confirmed', label: 'Confirmed by Owner' },
-    { status: 'active', label: 'Vehicle Picked Up' },
-    { status: 'returned', label: 'Vehicle Returned' },
+    { status: 'pending_owner_confirmation', label: 'Awaiting Owner' },
+    { status: 'confirmed', label: 'Confirmed' },
+    { status: 'active', label: 'Active' },
+    { status: 'returned', label: 'Returned' },
     { status: 'completed', label: 'Completed' },
   ];
 
@@ -132,7 +135,7 @@ export default function BookingDetailPage() {
   const isOwner = user?.role === 'owner';
   const isCustomer = booking.customer_id === user?.id;
   const canCancel = isCustomer && !['completed', 'cancelled', 'active'].includes(booking.status);
-  const canConfirm = isOwner && booking.status === 'payment_confirmed';
+  const canConfirm = isOwner && booking.status === 'pending_owner_confirmation';
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">

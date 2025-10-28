@@ -26,7 +26,10 @@ const registerSchema = z.object({
   confirm_password: z.string(),
   first_name: z.string().min(2, 'First name is required'),
   last_name: z.string().min(2, 'Last name is required'),
-  phone_number: z.string().optional(),
+  phone_number: z.string()
+    .regex(/^\+63\s?\d{3}\s?\d{3}\s?\d{4}$/, 'Phone number must be in format: +63 917 688 5315')
+    .optional()
+    .or(z.literal('')),
   profile_photo_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   role: z.enum(['customer', 'owner']),
 }).refine((data) => data.password === data.confirm_password, {
@@ -54,6 +57,33 @@ export function RegisterForm() {
       role: 'customer',
     },
   });
+
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digit characters except '+'
+    const cleaned = value.replace(/[^\d+]/g, '');
+
+    // If it doesn't start with +63, add it
+    if (!cleaned.startsWith('+63')) {
+      if (cleaned.startsWith('63')) {
+        return '+' + cleaned;
+      } else if (cleaned.startsWith('0')) {
+        return '+63' + cleaned.slice(1);
+      } else if (cleaned.length > 0 && !cleaned.startsWith('+')) {
+        return '+63' + cleaned;
+      }
+      return '+63';
+    }
+
+    // Format as +63 XXX XXX XXXX
+    const digits = cleaned.slice(3); // Remove +63
+    if (digits.length <= 3) {
+      return `+63 ${digits}`;
+    } else if (digits.length <= 6) {
+      return `+63 ${digits.slice(0, 3)} ${digits.slice(3)}`;
+    } else {
+      return `+63 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+    }
+  };
 
   const onSubmit = async (data: RegisterFormValues) => {
     try {
@@ -148,6 +178,11 @@ export function RegisterForm() {
                   type="tel"
                   placeholder="+63 912 345 6789"
                   {...field}
+                  onChange={(e) => {
+                    const formatted = formatPhoneNumber(e.target.value);
+                    field.onChange(formatted);
+                  }}
+                  maxLength={17}
                   disabled={isLoading}
                 />
               </FormControl>

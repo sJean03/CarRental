@@ -13,24 +13,29 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Star, Users, Gauge, Fuel, MapPin, Shield } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Star, Users, Gauge, Fuel, MapPin, Shield, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { addDays, format } from 'date-fns';
 
 export default function CarDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const [car, setCar] = useState<Car | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>();
   const [isBooking, setIsBooking] = useState(false);
+  const [hasActiveBooking, setHasActiveBooking] = useState(false);
 
   useEffect(() => {
     if (params.id) {
       fetchCar();
+      if (isAuthenticated) {
+        checkActiveBooking();
+      }
     }
-  }, [params.id]);
+  }, [params.id, isAuthenticated]);
 
   const fetchCar = async () => {
     try {
@@ -43,6 +48,25 @@ export default function CarDetailPage() {
       toast.error('Failed to load car details');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkActiveBooking = async () => {
+    try {
+      const response = await bookingsApi.getMyBookings();
+      if (response.success && response.data) {
+        const activeBooking = response.data.bookings.find(
+          (booking) =>
+            booking.car_id === params.id &&
+            ['pending_payment', 'pending_owner_confirmation', 'confirmed', 'active'].includes(
+              booking.status
+            )
+        );
+        setHasActiveBooking(!!activeBooking);
+      }
+    } catch (error) {
+      // Silently fail - user can still try to book
+      console.error('Failed to check active bookings:', error);
     }
   };
 
@@ -66,6 +90,16 @@ export default function CarDetailPage() {
     if (!dateRange?.from || !dateRange?.to) {
       toast.error('Please select rental dates');
       return;
+    }
+
+    // Safety check: warn if user already has an active booking for this car
+    if (hasActiveBooking) {
+      const confirmed = window.confirm(
+        'You already have an active booking for this car. Are you sure you want to create another booking?'
+      );
+      if (!confirmed) {
+        return;
+      }
     }
 
     try {
@@ -257,6 +291,15 @@ export default function CarDetailPage() {
                     <span>₱{calculateTotal().toLocaleString()}</span>
                   </div>
                 </div>
+              )}
+
+              {hasActiveBooking && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    You already have an active booking for this car. Booking again may create a duplicate.
+                  </AlertDescription>
+                </Alert>
               )}
 
               <Button

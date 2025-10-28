@@ -56,6 +56,7 @@ export default function OwnerDashboard() {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending_approval: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-blue-100 text-blue-800',
       listed: 'bg-green-100 text-green-800',
       unavailable: 'bg-gray-100 text-gray-800',
       suspended: 'bg-red-100 text-red-800',
@@ -87,7 +88,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Cars</CardTitle>
@@ -107,6 +108,21 @@ export default function OwnerDashboard() {
             <div className="text-2xl font-bold">
               {cars.filter((c) => c.status === 'listed').length}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
+            <CarIcon className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-700">
+              {cars.filter((c) => c.status === 'pending_approval').length}
+            </div>
+            {cars.filter((c) => c.status === 'pending_approval').length > 0 && (
+              <p className="text-xs text-yellow-600 mt-1">Awaiting admin review</p>
+            )}
           </CardContent>
         </Card>
 
@@ -155,40 +171,75 @@ export default function OwnerDashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {cars.map((car) => (
-                <Card key={car.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>
-                          {car.make} {car.model} {car.year}
-                        </CardTitle>
-                        <CardDescription>{car.license_plate}</CardDescription>
-                      </div>
-                      <Badge className={getStatusColor(car.status)}>
-                        {car.status.replace(/_/g, ' ')}
-                      </Badge>
+            <>
+              {/* Pending Approval Notice */}
+              {cars.filter((c) => c.status === 'pending_approval').length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-2xl font-bold">₱{car.daily_rate.toLocaleString()}</p>
-                        <p className="text-sm text-gray-600">per day</p>
-                      </div>
-                      <div className="text-right text-sm">
-                        <p className="text-gray-600">Total Bookings</p>
-                        <p className="font-semibold">{car.total_bookings}</p>
-                      </div>
-                      <Button asChild size="sm">
-                        <Link href={`/owner/cars/${car.id}`}>Manage</Link>
-                      </Button>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        {cars.filter((c) => c.status === 'pending_approval').length} car(s) awaiting approval
+                      </h3>
+                      <p className="mt-1 text-sm text-yellow-700">
+                        Your newly listed car(s) are under review by our admin team. This usually takes 24-48 hours. You'll be notified once approved.
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-4">
+                {/* Sort cars: pending first, then listed, then others */}
+                {cars
+                  .sort((a, b) => {
+                    const statusOrder: Record<string, number> = {
+                      pending_approval: 0,
+                      listed: 1,
+                      approved: 2,
+                      unavailable: 3,
+                      suspended: 4,
+                    };
+                    return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+                  })
+                  .map((car) => (
+                    <Card key={car.id} className={car.status === 'pending_approval' ? 'border-yellow-200' : ''}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle>
+                              {car.make} {car.model} {car.year}
+                            </CardTitle>
+                            <CardDescription>{car.license_plate}</CardDescription>
+                          </div>
+                          <Badge className={getStatusColor(car.status)}>
+                            {car.status.replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-2xl font-bold">₱{car.daily_rate.toLocaleString()}</p>
+                            <p className="text-sm text-gray-600">per day</p>
+                          </div>
+                          <div className="text-right text-sm">
+                            <p className="text-gray-600">Total Bookings</p>
+                            <p className="font-semibold">{car.total_bookings}</p>
+                          </div>
+                          <Button asChild size="sm">
+                            <Link href={`/owner/cars/${car.id}`}>Manage</Link>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            </>
           )}
         </TabsContent>
 
