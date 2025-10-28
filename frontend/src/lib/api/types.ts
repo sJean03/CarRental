@@ -134,6 +134,7 @@ export interface Booking {
   customer_last_name?: string;
   customer_email?: string;
   customer_phone?: string;
+  owner_user_id?: string; // User ID of the car owner (for ownership verification)
   owner_first_name?: string;
   owner_last_name?: string;
   owner_email?: string;

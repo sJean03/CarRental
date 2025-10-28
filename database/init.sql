@@ -650,7 +650,20 @@ INSERT INTO bookings (id, booking_reference, customer_id, car_id, owner_id, pick
 ('80000000-0000-0000-0000-00000000000d', 'RE-LIFECYCLE-005', '20000000-0000-0000-0000-000000000005', '60000000-0000-0000-0000-00000000000d', '50000000-0000-0000-0000-000000000006', CURRENT_DATE - INTERVAL '3 days', CURRENT_DATE - INTERVAL '1 day', 2, '11111111-1111-1111-1111-111111111111', 2500.00, 5000.00, 500.00, 5500.00, 'full', 'active', NOW() - INTERVAL '3 days', NOW() - INTERVAL '3 days' + INTERVAL '1 hour', 'Test: 1 day overdue', NOW() - INTERVAL '4 days'),
 
 -- Test 6: Pending owner confirmation (should remain in this state)
-('80000000-0000-0000-0000-00000000000e', 'RE-LIFECYCLE-006', '20000000-0000-0000-0000-000000000006', '60000000-0000-0000-0000-000000000006', '50000000-0000-0000-0000-000000000004', CURRENT_DATE + INTERVAL '1 day', CURRENT_DATE + INTERVAL '3 days', 2, '22222222-2222-2222-2222-222222222222', 1400.00, 2800.00, 280.00, 3080.00, 'full', 'pending_owner_confirmation', NULL, NULL, 'Test: Awaiting owner confirmation', NOW() - INTERVAL '3 hours');
+('80000000-0000-0000-0000-00000000000e', 'RE-LIFECYCLE-006', '20000000-0000-0000-0000-000000000006', '60000000-0000-0000-0000-000000000006', '50000000-0000-0000-0000-000000000004', CURRENT_DATE + INTERVAL '1 day', CURRENT_DATE + INTERVAL '3 days', 2, '22222222-2222-2222-2222-222222222222', 1400.00, 2800.00, 280.00, 3080.00, 'full', 'pending_owner_confirmation', NULL, NULL, 'Test: Awaiting owner confirmation', NOW() - INTERVAL '3 hours'),
+
+-- ============================================
+-- MANUAL TESTING BOOKINGS (for owner controls)
+-- ============================================
+
+-- Test 7: CONFIRMED booking - Test "Mark as Picked Up" button
+('80000000-0000-0000-0000-00000000000f', 'RE-MANUAL-001', '20000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001', CURRENT_DATE, CURRENT_DATE + INTERVAL '2 days', 2, '11111111-1111-1111-1111-111111111111', 1500.00, 3000.00, 300.00, 3300.00, 'full', 'confirmed', NULL, NULL, 'Test Manual: Click Mark as Picked Up', NOW() - INTERVAL '1 hour'),
+
+-- Test 8: ACTIVE booking - Test "Mark as Returned" button
+('80000000-0000-0000-0000-000000000010', 'RE-MANUAL-002', '20000000-0000-0000-0000-000000000002', '60000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000001', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE + INTERVAL '1 day', 2, '11111111-1111-1111-1111-111111111111', 1600.00, 3200.00, 320.00, 3520.00, 'full', 'active', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day' + INTERVAL '30 minutes', 'Test Manual: Click Mark as Returned', NOW() - INTERVAL '2 hours'),
+
+-- Test 9: RETURNED booking - Test "Complete Booking" button
+('80000000-0000-0000-0000-000000000011', 'RE-MANUAL-003', '20000000-0000-0000-0000-000000000003', '60000000-0000-0000-0000-000000000003', '50000000-0000-0000-0000-000000000002', CURRENT_DATE - INTERVAL '2 days', CURRENT_DATE - INTERVAL '1 hour', 2, '22222222-2222-2222-2222-222222222222', 3500.00, 7000.00, 700.00, 7700.00, 'full', 'returned', NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days' + INTERVAL '1 hour', 'Test Manual: Click Complete Booking', NOW() - INTERVAL '3 hours');
 
 -- Update booking references manually to avoid trigger issues
 UPDATE bookings SET booking_reference = 'RE-20251020-ABC123' WHERE id = '80000000-0000-0000-0000-000000000001';
@@ -667,6 +680,9 @@ UPDATE bookings SET booking_reference = 'RE-LIFECYCLE-003' WHERE id = '80000000-
 UPDATE bookings SET booking_reference = 'RE-LIFECYCLE-004' WHERE id = '80000000-0000-0000-0000-00000000000c';
 UPDATE bookings SET booking_reference = 'RE-LIFECYCLE-005' WHERE id = '80000000-0000-0000-0000-00000000000d';
 UPDATE bookings SET booking_reference = 'RE-LIFECYCLE-006' WHERE id = '80000000-0000-0000-0000-00000000000e';
+UPDATE bookings SET booking_reference = 'RE-MANUAL-001' WHERE id = '80000000-0000-0000-0000-00000000000f';
+UPDATE bookings SET booking_reference = 'RE-MANUAL-002' WHERE id = '80000000-0000-0000-0000-000000000010';
+UPDATE bookings SET booking_reference = 'RE-MANUAL-003' WHERE id = '80000000-0000-0000-0000-000000000011';
 
 -- ============================================
 -- 10. PAYMENTS
@@ -690,7 +706,12 @@ INSERT INTO payments (id, booking_id, amount, payment_method, payment_plan, inst
 ('90000000-0000-0000-0000-00000000000a', '80000000-0000-0000-0000-00000000000b', 3960.00, 'credit_card', 'full', NULL, true, '3333', 'Visa', 'TXN-LIFECYCLE-003', 'completed', NOW() - INTERVAL '3 days', NOW() - INTERVAL '3 days'),
 ('90000000-0000-0000-0000-00000000000b', '80000000-0000-0000-0000-00000000000c', 4400.00, 'credit_card', 'full', NULL, true, '4444', 'Amex', 'TXN-LIFECYCLE-004', 'completed', NOW() - INTERVAL '6 days', NOW() - INTERVAL '6 days'),
 ('90000000-0000-0000-0000-00000000000c', '80000000-0000-0000-0000-00000000000d', 5500.00, 'credit_card', 'full', NULL, true, '5555', 'Visa', 'TXN-LIFECYCLE-005', 'completed', NOW() - INTERVAL '4 days', NOW() - INTERVAL '4 days'),
-('90000000-0000-0000-0000-00000000000d', '80000000-0000-0000-0000-00000000000e', 3080.00, 'credit_card', 'full', NULL, true, '6666', 'Mastercard', 'TXN-LIFECYCLE-006', 'completed', NOW() - INTERVAL '3 hours', NOW() - INTERVAL '3 hours');
+('90000000-0000-0000-0000-00000000000d', '80000000-0000-0000-0000-00000000000e', 3080.00, 'credit_card', 'full', NULL, true, '6666', 'Mastercard', 'TXN-LIFECYCLE-006', 'completed', NOW() - INTERVAL '3 hours', NOW() - INTERVAL '3 hours'),
+
+-- Manual test booking payments
+('90000000-0000-0000-0000-00000000000e', '80000000-0000-0000-0000-00000000000f', 3300.00, 'credit_card', 'full', NULL, true, '7777', 'Visa', 'TXN-MANUAL-001', 'completed', NOW() - INTERVAL '1 hour', NOW() - INTERVAL '1 hour'),
+('90000000-0000-0000-0000-00000000000f', '80000000-0000-0000-0000-000000000010', 3520.00, 'credit_card', 'full', NULL, true, '8888', 'Mastercard', 'TXN-MANUAL-002', 'completed', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '2 hours'),
+('90000000-0000-0000-0000-000000000012', '80000000-0000-0000-0000-000000000011', 7700.00, 'credit_card', 'full', NULL, true, '9999', 'Visa', 'TXN-MANUAL-003', 'completed', NOW() - INTERVAL '3 hours', NOW() - INTERVAL '3 hours');
 
 -- Update refund info for cancelled booking
 UPDATE payments SET refunded_amount = 19800.00, refunded_at = NOW() - INTERVAL '1 day', refund_reason = 'Booking cancelled by customer' WHERE id = '90000000-0000-0000-0000-000000000007';

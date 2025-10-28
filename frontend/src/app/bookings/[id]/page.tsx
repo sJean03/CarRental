@@ -132,9 +132,10 @@ export default function BookingDetailPage() {
     );
   }
 
-  const isOwner = user?.role === 'owner';
+  // Check if current user is the actual owner of the car (not just any owner role)
+  const isOwner = booking.owner_user_id === user?.id;
   const isCustomer = booking.customer_id === user?.id;
-  const canCancel = isCustomer && !['completed', 'cancelled', 'active'].includes(booking.status);
+  const canCancel = isCustomer && !['completed', 'cancelled', 'cancelled_with_refund', 'active'].includes(booking.status);
   const canConfirm = isOwner && booking.status === 'pending_owner_confirmation';
 
   return (

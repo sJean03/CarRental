@@ -50,7 +50,7 @@ class Booking {
    */
   static async findById(bookingId) {
     const query = `
-      SELECT 
+      SELECT
         b.*,
         c.make, c.model, c.year, c.license_plate, c.image_urls as car_images,
         u.first_name as customer_first_name, u.last_name as customer_last_name,
