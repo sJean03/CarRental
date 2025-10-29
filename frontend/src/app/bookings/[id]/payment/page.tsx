@@ -11,9 +11,11 @@ import { Booking } from '@/lib/api/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import toast from 'react-hot-toast';
 
 const paymentSchema = z.object({
@@ -50,6 +52,8 @@ export default function PaymentPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showTermsDialog, setShowTermsDialog] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
@@ -307,14 +311,114 @@ export default function PaymentPage() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full" size="lg" disabled={isProcessing}>
-                  {isProcessing ? 'Processing...' : `Pay ₱${booking.total_amount.toLocaleString()}`}
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <Checkbox 
+                      id="terms" 
+                      checked={termsAccepted}
+                      onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                      className="mt-1"
+                    />
+                    <label
+                      htmlFor="terms"
+                      className="text-sm text-red-800 cursor-pointer"
+                    >
+                      By proceeding with payment, you agree to our{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowTermsDialog(true);
+                        }}
+                        className="font-semibold underline hover:text-red-900"
+                      >
+                        Terms and Conditions
+                      </button>
+                      . Please ensure you have read and understood them before completing your payment.
+                    </label>
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  size="lg" 
+                  disabled={isProcessing || !termsAccepted}
+                >
+                  {isProcessing ? 'Processing...' : `Proceed to Payment: ₱${booking.total_amount.toLocaleString()}`}
                 </Button>
               </form>
             </Form>
           </CardContent>
         </Card>
       </div>
+
+      {/* Terms and Conditions Dialog */}
+      <Dialog open={showTermsDialog} onOpenChange={setShowTermsDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Terms and Conditions</DialogTitle>
+            <DialogDescription>
+              Please read these terms carefully before proceeding with your payment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <section>
+              <h3 className="font-semibold text-base mb-2">1. Acceptance of Terms</h3>
+              <p className="text-gray-700">
+                By using our car rental platform and making a booking, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base mb-2">2. Booking and Payment</h3>
+              <p className="text-gray-700">
+                All bookings are subject to vehicle availability. Payment must be completed in full before the rental period begins. We accept credit and debit cards as specified in the payment form.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base mb-2">3. Cancellation Policy</h3>
+              <p className="text-gray-700">
+                Cancellations made more than 48 hours before the pickup date will receive a full refund minus a processing fee. Cancellations made within 48 hours are non-refundable.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base mb-2">4. Vehicle Use</h3>
+              <p className="text-gray-700">
+                The rented vehicle must only be used for lawful purposes. Smoking, transporting illegal substances, or using the vehicle for commercial purposes without authorization is strictly prohibited.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base mb-2">5. Insurance and Liability</h3>
+              <p className="text-gray-700">
+                Basic insurance is included in the rental fee. Renters are responsible for any damages, theft, or loss of the vehicle during the rental period up to the excess amount specified in the insurance policy.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base mb-2">6. Return Conditions</h3>
+              <p className="text-gray-700">
+                Vehicles must be returned at the agreed time and location with the same fuel level as at pickup. Late returns may incur additional charges. The vehicle must be returned in the same condition as received.
+              </p>
+            </section>
+
+            <section>
+              <h3 className="font-semibold text-base mb-2">7. Platform Fees</h3>
+              <p className="text-gray-700">
+                A platform service fee is charged to facilitate the booking and ensure quality service. This fee is non-refundable and covers operational costs, customer support, and platform maintenance.
+              </p>
+            </section>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowTermsDialog(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

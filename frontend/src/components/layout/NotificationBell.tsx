@@ -140,7 +140,7 @@ export function NotificationBell() {
               <DropdownMenuItem
                 key={notification.id}
                 className={`flex flex-col items-start p-3 cursor-pointer ${
-                  !notification.is_read ? 'bg-blue-50' : ''
+                  !notification.is_read ? 'bg-blue-gradient/10' : ''
                 }`}
                 onClick={() => handleNotificationClick(notification)}
               >

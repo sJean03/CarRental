@@ -90,8 +90,6 @@ export const carsApi = {
     const response = await apiClient.post(`/cars/${id}/resubmit`);
     return response.data;
   },
-<<<<<<< Updated upstream
-=======
 
   // Owner: Request delist for car
   requestDelist: async (id: string, data?: { reason?: string }): Promise<ApiResponse<{ request: any }>> => {
@@ -116,5 +114,10 @@ export const carsApi = {
     const response = await apiClient.put(`/admin/delist-requests/${id}/reject`);
     return response.data;
   },
->>>>>>> Stashed changes
+
+  // Admin: Force delist car directly
+  forceDelist: async (id: string, data?: { reason?: string; admin_notes?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/admin/cars/${id}/delist`, data);
+    return response.data;
+  },
 };

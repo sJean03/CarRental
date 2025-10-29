@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss"
+import plugin from 'tailwindcss/plugin'
 
 const config = {
   darkMode: "class",
@@ -19,6 +20,19 @@ const config = {
     },
     extend: {
       colors: {
+        // Override Tailwind's blue palette so existing blue-* classes render as dark gray
+        blue: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#374151',
+          700: '#1f2937',
+          800: '#0f1724',
+          900: '#020617',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -74,7 +88,23 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    // small plugin to provide a reusable dark-gray gradient utility
+    plugin(({ addUtilities }: any) => {
+      addUtilities({
+        '.bg-blue-gradient': {
+          'background-image': 'linear-gradient(90deg, #1f2937 0%, #4b5563 100%)',
+        },
+        '.text-blue-gradient': {
+          'background-image': 'linear-gradient(90deg, #1f2937 0%, #4b5563 100%)',
+          '-webkit-background-clip': 'text',
+          'background-clip': 'text',
+          'color': 'transparent',
+        },
+      })
+    }),
+  ],
 } satisfies Config
 
 export default config

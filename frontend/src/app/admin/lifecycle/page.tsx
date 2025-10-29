@@ -106,7 +106,7 @@ export default function AdminLifecyclePage() {
     const colors: Record<string, string> = {
       pending_payment: 'bg-yellow-100 text-yellow-800',
       pending_owner_confirmation: 'bg-orange-100 text-orange-800',
-      confirmed: 'bg-blue-100 text-blue-800',
+      confirmed: 'bg-blue-gradient/10 text-blue-700',
       active: 'bg-green-100 text-green-800',
       returned: 'bg-purple-100 text-purple-800',
     };
@@ -117,7 +117,7 @@ export default function AdminLifecyclePage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading lifecycle data...</p>
         </div>
       </div>
@@ -164,7 +164,7 @@ export default function AdminLifecyclePage() {
               <button
                 onClick={() => triggerJob('lifecycle')}
                 disabled={triggeringJob === 'lifecycle'}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm"
+                className="w-full bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400 text-sm"
               >
                 {triggeringJob === 'lifecycle' ? 'Running...' : 'Run Lifecycle Job'}
               </button>
@@ -216,9 +216,9 @@ export default function AdminLifecyclePage() {
           </div>
 
           {/* Upcoming Active */}
-          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">Ready to Activate</h3>
-            <p className="text-3xl font-bold text-blue-600">{stats?.upcoming.toActive || 0}</p>
+          <div className="bg-blue-gradient/10 border-l-4 border-blue-700 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-blue-700 mb-2">Ready to Activate</h3>
+            <p className="text-3xl font-bold text-blue-700">{stats?.upcoming.toActive || 0}</p>
             <p className="text-sm text-blue-700 mt-1">Bookings ready for pickup</p>
           </div>
 

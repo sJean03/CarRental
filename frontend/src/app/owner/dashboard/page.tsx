@@ -291,8 +291,6 @@ export default function OwnerDashboard() {
                             <Button asChild size="sm">
                               <Link href={`/owner/cars/${car.id}`}>Manage</Link>
                             </Button>
-<<<<<<< Updated upstream
-=======
                             <div className="ml-2">
                               {car.status !== 'unavailable' && (
                                 <Button
@@ -314,7 +312,6 @@ export default function OwnerDashboard() {
                                 </Button>
                               )}
                             </div>
->>>>>>> Stashed changes
                           </div>
                         </div>
                       </CardContent>

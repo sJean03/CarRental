@@ -92,13 +92,10 @@ router.put('/:id/reject', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), vali
  */
 router.post('/:id/resubmit', authMiddleware, ownerMiddleware, validateUUID('id'), carController.resubmitCar);
 
-<<<<<<< Updated upstream
-=======
 /**
  * Owner: Request delist for a car
  * POST /api/cars/:id/delist-request
  */
 router.post('/:id/delist-request', authMiddleware, ownerMiddleware, validateUUID('id'), delistController.createDelistRequest);
 
->>>>>>> Stashed changes
 module.exports = router;
