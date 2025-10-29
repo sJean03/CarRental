@@ -90,4 +90,31 @@ export const carsApi = {
     const response = await apiClient.post(`/cars/${id}/resubmit`);
     return response.data;
   },
+<<<<<<< Updated upstream
+=======
+
+  // Owner: Request delist for car
+  requestDelist: async (id: string, data?: { reason?: string }): Promise<ApiResponse<{ request: any }>> => {
+    const response = await apiClient.post(`/cars/${id}/delist-request`, data);
+    return response.data;
+  },
+
+  // Admin: Get pending delist requests
+  getDelistRequests: async (): Promise<ApiResponse<{ requests: any[] }>> => {
+    const response = await apiClient.get('/admin/delist-requests');
+    return response.data;
+  },
+
+  // Admin: Approve delist request
+  approveDelist: async (id: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/admin/delist-requests/${id}/approve`);
+    return response.data;
+  },
+
+  // Admin: Reject delist request
+  rejectDelist: async (id: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/admin/delist-requests/${id}/reject`);
+    return response.data;
+  },
+>>>>>>> Stashed changes
 };

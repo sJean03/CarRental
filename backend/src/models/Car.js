@@ -106,10 +106,30 @@ class Car {
     }
 
     // Filter by fuel type
+    // NOTE: business change: treat incoming `fuel_type` filter as a mapping
+    // to branch locations (the frontend now repurposes the fuel_type selector
+    // to pick branches like Manila/Makati/Quezon City). Map known values to
+    // branch UUIDs seeded in database/init.sql. If mapping is not found,
+    // fall back to filtering by the actual fuel_type column.
     if (filters.fuel_type) {
-      query += ` AND c.fuel_type = $${paramCount}`;
-      values.push(filters.fuel_type);
-      paramCount++;
+      const fuelToBranch = {
+        petrol: '11111111-1111-1111-1111-111111111111', // Manila
+        diesel: '22222222-2222-2222-2222-222222222222', // Makati
+        electric: '33333333-3333-3333-3333-333333333333', // Quezon City
+        hybrid: '11111111-1111-1111-1111-111111111111' // default to Manila
+      };
+
+      const mappedBranchId = fuelToBranch[filters.fuel_type];
+      if (mappedBranchId) {
+        query += ` AND c.home_branch_id = $${paramCount}`;
+        values.push(mappedBranchId);
+        paramCount++;
+      } else {
+        // Unknown value — keep old behavior
+        query += ` AND c.fuel_type = $${paramCount}`;
+        values.push(filters.fuel_type);
+        paramCount++;
+      }
     }
 
     // Filter by seating capacity

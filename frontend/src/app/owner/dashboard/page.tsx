@@ -291,6 +291,30 @@ export default function OwnerDashboard() {
                             <Button asChild size="sm">
                               <Link href={`/owner/cars/${car.id}`}>Manage</Link>
                             </Button>
+<<<<<<< Updated upstream
+=======
+                            <div className="ml-2">
+                              {car.status !== 'unavailable' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={async () => {
+                                    try {
+                                      const resp = await carsApi.requestDelist(car.id, { reason: 'Owner requested delist' });
+                                      if (resp.success) {
+                                        toast.success('Delist request submitted');
+                                        fetchData();
+                                      }
+                                    } catch (err) {
+                                      toast.error('Failed to submit delist request');
+                                    }
+                                  }}
+                                >
+                                  Request Delist
+                                </Button>
+                              )}
+                            </div>
+>>>>>>> Stashed changes
                           </div>
                         </div>
                       </CardContent>

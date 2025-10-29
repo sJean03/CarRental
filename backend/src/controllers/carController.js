@@ -15,6 +15,12 @@ const createCar = async (req, res, next) => {
       owner = await VehicleOwner.create(req.user.id);
     }
 
+    // Normalize home_branch_id: accept array (from multi-checkbox) or single value
+    let normalizedBranchId = req.body.home_branch_id;
+    if (Array.isArray(normalizedBranchId)) {
+      normalizedBranchId = normalizedBranchId[0];
+    }
+
     const carData = {
       make: req.body.make,
       model: req.body.model,
@@ -31,7 +37,7 @@ const createCar = async (req, res, next) => {
       features: req.body.features || [],
       rules: req.body.rules,
       image_urls: req.body.image_urls || [],
-      home_branch_id: req.body.home_branch_id,
+      home_branch_id: normalizedBranchId,
       storage_option: req.body.storage_option || 'owner_delivers'
     };
 

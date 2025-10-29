@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
   const [pendingCars, setPendingCars] = useState<Car[]>([]);
+  const [delistRequests, setDelistRequests] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +53,12 @@ export default function AdminDashboard() {
 
       if (statsRes.success && statsRes.data) {
         setStats(statsRes.data.stats);
+      }
+
+      // Fetch delist requests
+      const delistRes = await carsApi.getDelistRequests();
+      if (delistRes.success && delistRes.data) {
+        setDelistRequests(delistRes.data.requests);
       }
     } catch (error) {
       toast.error('Failed to load dashboard data');
@@ -164,6 +171,7 @@ export default function AdminDashboard() {
       <Tabs defaultValue="approvals" className="space-y-6">
         <TabsList>
           <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
+          <TabsTrigger value="delist">Delist Pending Approvals</TabsTrigger>
           <TabsTrigger value="payments">Recent Payments</TabsTrigger>
         </TabsList>
 
@@ -255,6 +263,67 @@ export default function AdminDashboard() {
                           onClick={() => openRejectModal(car)}
                           className="flex-1"
                         >
+                          <X className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="delist" className="space-y-4">
+          {delistRequests.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <p className="text-gray-600">No delist requests pending</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {delistRequests.map((req) => (
+                <Card key={req.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{req.make} {req.model} {req.year}</CardTitle>
+                        <CardDescription>{req.license_plate}</CardDescription>
+                      </div>
+                      <div className="text-sm text-gray-600">Requested: {new Date(req.created_at).toLocaleString()}</div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-700">Reason: {req.reason || 'No reason provided'}</div>
+                      <div className="flex gap-2 pt-4 border-t">
+                        <Button size="sm" variant="default" onClick={async () => {
+                          try {
+                            const resp = await carsApi.approveDelist(req.id);
+                            if (resp.success) {
+                              toast.success('Delist request approved');
+                              fetchData();
+                            }
+                          } catch (err) {
+                            toast.error('Failed to approve request');
+                          }
+                        }}>
+                          <Check className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={async () => {
+                          try {
+                            const resp = await carsApi.rejectDelist(req.id);
+                            if (resp.success) {
+                              toast.success('Delist request rejected');
+                              fetchData();
+                            }
+                          } catch (err) {
+                            toast.error('Failed to reject request');
+                          }
+                        }}>
                           <X className="h-4 w-4 mr-2" />
                           Reject
                         </Button>

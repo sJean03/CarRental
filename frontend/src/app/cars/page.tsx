@@ -86,19 +86,19 @@ export default function CarsPage() {
           </Select>
 
           <Select
-            value={filters.fuel_type || ''}
+            value={filters.branch_id || ''}
             onValueChange={(value) =>
-              setFilters({ ...filters, fuel_type: value as any })
+              setFilters({ ...filters, branch_id: value || undefined })
             }
           >
             <SelectTrigger>
-              <SelectValue placeholder="Fuel Type" />
+              <SelectValue placeholder="Branch" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="petrol">Petrol</SelectItem>
-              <SelectItem value="diesel">Diesel</SelectItem>
-              <SelectItem value="electric">Electric</SelectItem>
-              <SelectItem value="hybrid">Hybrid</SelectItem>
+              {/* Using sample branch UUIDs from database/init.sql */}
+              <SelectItem value="11111111-1111-1111-1111-111111111111">Manila</SelectItem>
+              <SelectItem value="22222222-2222-2222-2222-222222222222">Makati</SelectItem>
+              <SelectItem value="33333333-3333-3333-3333-333333333333">Quezon City</SelectItem>
             </SelectContent>
           </Select>
 
@@ -130,7 +130,7 @@ export default function CarsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="created_at">Newest</SelectItem>
-              <SelectItem value="daily_rate">Price: Low to High</SelectItem>
+              <SelectItem value="daily_rate">Price: High to Low</SelectItem>
               <SelectItem value="average_rating">Top Rated</SelectItem>
             </SelectContent>
           </Select>
