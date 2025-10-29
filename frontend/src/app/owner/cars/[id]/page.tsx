@@ -79,6 +79,18 @@ export default function OwnerCarDetailPage() {
     }
   };
 
+  const handleResubmit = async () => {
+    try {
+      const response = await carsApi.resubmit(carId);
+      if (response.success) {
+        toast.success('Car resubmitted for approval');
+        fetchData();
+      }
+    } catch (error) {
+      toast.error('Failed to resubmit car');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending_approval: 'bg-yellow-100 text-yellow-800',
@@ -86,6 +98,7 @@ export default function OwnerCarDetailPage() {
       listed: 'bg-green-100 text-green-800',
       unavailable: 'bg-gray-100 text-gray-800',
       suspended: 'bg-red-100 text-red-800',
+      rejected: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -145,6 +158,45 @@ export default function OwnerCarDetailPage() {
           </Badge>
         </div>
       </div>
+
+      {/* Rejection Notice */}
+      {car.status === 'rejected' && car.rejection_reason && (
+        <div className="mb-8 p-6 bg-red-50 border-2 border-red-200 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-lg font-semibold text-red-900 mb-2">Car Listing Rejected</h3>
+              <div className="mb-4">
+                <p className="text-sm font-medium text-red-800 mb-1">Reason for rejection:</p>
+                <p className="text-sm text-red-700 bg-red-100 p-3 rounded border border-red-200">
+                  {car.rejection_reason}
+                </p>
+              </div>
+              <p className="text-sm text-red-800 mb-4">
+                Please review the rejection reason above and make necessary changes before resubmitting your car for approval.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="default"
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={handleResubmit}
+                >
+                  Resubmit for Approval
+                </Button>
+                <Button variant="outline" asChild className="border-red-300 text-red-700 hover:bg-red-50">
+                  <Link href={`/owner/cars/${car.id}/edit`}>
+                    Edit Car Details
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

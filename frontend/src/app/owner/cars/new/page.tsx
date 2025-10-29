@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { carsApi } from '@/lib/api/cars';
+import type { Car } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -41,6 +42,7 @@ type CarFormValues = z.infer<typeof carSchema>;
 export default function NewCarPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<string | undefined>(undefined);
 
   const form = useForm<CarFormValues>({
     resolver: zodResolver(carSchema),
@@ -74,12 +76,13 @@ export default function NewCarPage() {
     try {
       setIsSubmitting(true);
 
-      // Convert comma-separated image URLs to array
-      const carData = {
+      // Convert comma-separated image URLs to array and include selected branch
+      const carData: Partial<Car> = {
         ...data,
         image_urls: data.image_urls
-          ? data.image_urls.split(',').map(url => url.trim()).filter(url => url)
+          ? data.image_urls.split(',').map((url: string) => url.trim()).filter((url: string) => url)
           : [],
+        home_branch_id: selectedBranch || undefined,
       };
 
       const response = await carsApi.create(carData);
@@ -257,6 +260,49 @@ export default function NewCarPage() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* Branch selection (single choice) */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Branch</p>
+                <p className="text-xs text-gray-500 mb-2">Select the branch where this car will be located.</p>
+                <div className="flex gap-6">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="home_branch"
+                      value="11111111-1111-1111-1111-111111111111"
+                      checked={selectedBranch === '11111111-1111-1111-1111-111111111111'}
+                      onChange={() => setSelectedBranch('11111111-1111-1111-1111-111111111111')}
+                      className="form-radio"
+                    />
+                    <span>Manila</span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="home_branch"
+                      value="33333333-3333-3333-3333-333333333333"
+                      checked={selectedBranch === '33333333-3333-3333-3333-333333333333'}
+                      onChange={() => setSelectedBranch('33333333-3333-3333-3333-333333333333')}
+                      className="form-radio"
+                    />
+                    <span>Quezon City</span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="home_branch"
+                      value="22222222-2222-2222-2222-222222222222"
+                      checked={selectedBranch === '22222222-2222-2222-2222-222222222222'}
+                      onChange={() => setSelectedBranch('22222222-2222-2222-2222-222222222222')}
+                      className="form-radio"
+                    />
+                    <span>Makati</span>
+                  </label>
+                </div>
               </div>
 
               <FormField

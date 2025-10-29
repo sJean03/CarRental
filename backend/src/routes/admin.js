@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const authMiddleware = require('../middleware/authMiddleware');
+const roleMiddleware = require('../middleware/roleMiddleware');
+const { USER_ROLES } = require('../config/constants');
+const delistController = require('../controllers/delistController');
 
 // TODO: Add admin-only middleware to restrict these routes
 // For now, just requiring authentication
@@ -58,5 +61,10 @@ router.post(
   authMiddleware,
   adminController.forceTransition
 );
+
+// Delist requests management
+router.get('/delist-requests', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), delistController.getPendingRequests);
+router.put('/delist-requests/:id/approve', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), delistController.approveRequest);
+router.put('/delist-requests/:id/reject', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), delistController.rejectRequest);
 
 module.exports = router;

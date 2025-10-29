@@ -6,6 +6,7 @@ const roleMiddleware = require('../middleware/roleMiddleware');
 const ownerMiddleware = require('../middleware/ownerMiddleware');
 const { validateCarCreate, validateUUID } = require('../middleware/validation');
 const { USER_ROLES } = require('../config/constants');
+const delistController = require('../controllers/delistController');
 
 /**
  * @route   GET /api/cars
@@ -84,4 +85,20 @@ router.put('/:id/approve', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), val
  */
 router.put('/:id/reject', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), validateUUID('id'), carController.rejectCar);
 
+/**
+ * @route   POST /api/cars/:id/resubmit
+ * @desc    Resubmit rejected car for approval
+ * @access  Private (Owner)
+ */
+router.post('/:id/resubmit', authMiddleware, ownerMiddleware, validateUUID('id'), carController.resubmitCar);
+
+<<<<<<< Updated upstream
+=======
+/**
+ * Owner: Request delist for a car
+ * POST /api/cars/:id/delist-request
+ */
+router.post('/:id/delist-request', authMiddleware, ownerMiddleware, validateUUID('id'), delistController.createDelistRequest);
+
+>>>>>>> Stashed changes
 module.exports = router;

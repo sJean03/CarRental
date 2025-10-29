@@ -38,7 +38,7 @@ export interface VehicleOwner {
 // Car Types
 export type TransmissionType = 'automatic' | 'manual';
 export type FuelType = 'petrol' | 'diesel' | 'electric' | 'hybrid';
-export type CarStatus = 'pending_approval' | 'approved' | 'listed' | 'unavailable' | 'suspended';
+export type CarStatus = 'pending_approval' | 'approved' | 'listed' | 'unavailable' | 'suspended' | 'rejected';
 export type StorageOption = 'warehouse' | 'owner_delivers';
 
 export interface Car {

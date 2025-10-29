@@ -15,6 +15,12 @@ const createCar = async (req, res, next) => {
       owner = await VehicleOwner.create(req.user.id);
     }
 
+    // Normalize home_branch_id: accept array (from multi-checkbox) or single value
+    let normalizedBranchId = req.body.home_branch_id;
+    if (Array.isArray(normalizedBranchId)) {
+      normalizedBranchId = normalizedBranchId[0];
+    }
+
     const carData = {
       make: req.body.make,
       model: req.body.model,
@@ -31,7 +37,7 @@ const createCar = async (req, res, next) => {
       features: req.body.features || [],
       rules: req.body.rules,
       image_urls: req.body.image_urls || [],
-      home_branch_id: req.body.home_branch_id,
+      home_branch_id: normalizedBranchId,
       storage_option: req.body.storage_option || 'owner_delivers'
     };
 
@@ -407,6 +413,30 @@ const rejectCar = async (req, res, next) => {
   }
 };
 
+/**
+ * Owner: Resubmit rejected car for approval
+ */
+const resubmitCar = async (req, res, next) => {
+  try {
+    const car = await Car.resubmit(req.params.id);
+
+    if (!car) {
+      return res.status(404).json({
+        success: false,
+        message: 'Car not found or not in rejected status'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Car resubmitted for approval',
+      data: { car }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createCar,
   getAllCars,
@@ -418,5 +448,6 @@ module.exports = {
   getBlockedDates,
   blockDates,
   approveCar,
-  rejectCar
+  rejectCar,
+  resubmitCar
 };

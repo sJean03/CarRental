@@ -106,10 +106,30 @@ class Car {
     }
 
     // Filter by fuel type
+    // NOTE: business change: treat incoming `fuel_type` filter as a mapping
+    // to branch locations (the frontend now repurposes the fuel_type selector
+    // to pick branches like Manila/Makati/Quezon City). Map known values to
+    // branch UUIDs seeded in database/init.sql. If mapping is not found,
+    // fall back to filtering by the actual fuel_type column.
     if (filters.fuel_type) {
-      query += ` AND c.fuel_type = $${paramCount}`;
-      values.push(filters.fuel_type);
-      paramCount++;
+      const fuelToBranch = {
+        petrol: '11111111-1111-1111-1111-111111111111', // Manila
+        diesel: '22222222-2222-2222-2222-222222222222', // Makati
+        electric: '33333333-3333-3333-3333-333333333333', // Quezon City
+        hybrid: '11111111-1111-1111-1111-111111111111' // default to Manila
+      };
+
+      const mappedBranchId = fuelToBranch[filters.fuel_type];
+      if (mappedBranchId) {
+        query += ` AND c.home_branch_id = $${paramCount}`;
+        values.push(mappedBranchId);
+        paramCount++;
+      } else {
+        // Unknown value — keep old behavior
+        query += ` AND c.fuel_type = $${paramCount}`;
+        values.push(filters.fuel_type);
+        paramCount++;
+      }
     }
 
     // Filter by seating capacity
@@ -226,12 +246,26 @@ class Car {
    */
   static async reject(carId, rejectionReason, adminNotes = null) {
     const query = `
-      UPDATE cars 
-      SET status = 'pending_approval', rejection_reason = $1, admin_notes = $2
+      UPDATE cars
+      SET status = 'rejected', rejection_reason = $1, admin_notes = $2
       WHERE id = $3
       RETURNING *
     `;
     const result = await db.query(query, [rejectionReason, adminNotes, carId]);
+    return result.rows[0];
+  }
+
+  /**
+   * Owner: Resubmit rejected car for approval
+   */
+  static async resubmit(carId) {
+    const query = `
+      UPDATE cars
+      SET status = 'pending_approval', rejection_reason = NULL, admin_notes = NULL
+      WHERE id = $1 AND status = 'rejected'
+      RETURNING *
+    `;
+    const result = await db.query(query, [carId]);
     return result.rows[0];
   }
 

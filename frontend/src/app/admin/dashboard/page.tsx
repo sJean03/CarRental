@@ -13,14 +13,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Car as CarIcon, DollarSign, CreditCard, TrendingUp, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatCurrencyFull } from '@/lib/utils/formatNumber';
+import { RejectCarModal } from '@/components/admin/RejectCarModal';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
   const [pendingCars, setPendingCars] = useState<Car[]>([]);
+  const [delistRequests, setDelistRequests] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedCar, setSelectedCar] = useState<Car | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== 'admin') {
@@ -50,6 +54,12 @@ export default function AdminDashboard() {
       if (statsRes.success && statsRes.data) {
         setStats(statsRes.data.stats);
       }
+
+      // Fetch delist requests
+      const delistRes = await carsApi.getDelistRequests();
+      if (delistRes.success && delistRes.data) {
+        setDelistRequests(delistRes.data.requests);
+      }
     } catch (error) {
       toast.error('Failed to load dashboard data');
     } finally {
@@ -69,16 +79,28 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRejectCar = async (carId: string) => {
+  const handleRejectCar = async (rejectionReason: string, adminNotes: string) => {
+    if (!selectedCar) return;
+
     try {
-      const response = await carsApi.reject(carId, 'Does not meet requirements', 'Rejected by admin');
+      const response = await carsApi.reject(selectedCar.id, rejectionReason, adminNotes);
       if (response.success) {
-        toast.success('Car rejected');
+        toast.success('Car rejected successfully');
         fetchData();
       }
     } catch (error) {
       toast.error('Failed to reject car');
     }
+  };
+
+  const openRejectModal = (car: Car) => {
+    setSelectedCar(car);
+    setRejectModalOpen(true);
+  };
+
+  const closeRejectModal = () => {
+    setRejectModalOpen(false);
+    setSelectedCar(null);
   };
 
   if (!isAuthenticated || !user) {
@@ -149,6 +171,7 @@ export default function AdminDashboard() {
       <Tabs defaultValue="approvals" className="space-y-6">
         <TabsList>
           <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
+          <TabsTrigger value="delist">Delist Pending Approvals</TabsTrigger>
           <TabsTrigger value="payments">Recent Payments</TabsTrigger>
         </TabsList>
 
@@ -171,9 +194,17 @@ export default function AdminDashboard() {
                         </CardTitle>
                         <CardDescription>{car.license_plate}</CardDescription>
                       </div>
-                      <Badge className="bg-yellow-100 text-yellow-800">
-                        Pending Approval
-                      </Badge>
+                      <div className="flex gap-2">
+                        {car.status === 'rejected' ? (
+                          <Badge className="bg-red-100 text-red-800">
+                            Rejected
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-yellow-100 text-yellow-800">
+                            Pending Approval
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -209,6 +240,13 @@ export default function AdminDashboard() {
                         </div>
                       )}
 
+                      {car.rejection_reason && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                          <p className="text-sm font-medium text-red-900 mb-1">Rejection Reason:</p>
+                          <p className="text-sm text-red-800">{car.rejection_reason}</p>
+                        </div>
+                      )}
+
                       <div className="flex gap-2 pt-4 border-t">
                         <Button
                           size="sm"
@@ -222,9 +260,70 @@ export default function AdminDashboard() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleRejectCar(car.id)}
+                          onClick={() => openRejectModal(car)}
                           className="flex-1"
                         >
+                          <X className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="delist" className="space-y-4">
+          {delistRequests.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <p className="text-gray-600">No delist requests pending</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {delistRequests.map((req) => (
+                <Card key={req.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{req.make} {req.model} {req.year}</CardTitle>
+                        <CardDescription>{req.license_plate}</CardDescription>
+                      </div>
+                      <div className="text-sm text-gray-600">Requested: {new Date(req.created_at).toLocaleString()}</div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="text-sm text-gray-700">Reason: {req.reason || 'No reason provided'}</div>
+                      <div className="flex gap-2 pt-4 border-t">
+                        <Button size="sm" variant="default" onClick={async () => {
+                          try {
+                            const resp = await carsApi.approveDelist(req.id);
+                            if (resp.success) {
+                              toast.success('Delist request approved');
+                              fetchData();
+                            }
+                          } catch (err) {
+                            toast.error('Failed to approve request');
+                          }
+                        }}>
+                          <Check className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={async () => {
+                          try {
+                            const resp = await carsApi.rejectDelist(req.id);
+                            if (resp.success) {
+                              toast.success('Delist request rejected');
+                              fetchData();
+                            }
+                          } catch (err) {
+                            toast.error('Failed to reject request');
+                          }
+                        }}>
                           <X className="h-4 w-4 mr-2" />
                           Reject
                         </Button>
@@ -301,6 +400,14 @@ export default function AdminDashboard() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Reject Car Modal */}
+      <RejectCarModal
+        isOpen={rejectModalOpen}
+        onClose={closeRejectModal}
+        onConfirm={handleRejectCar}
+        carName={selectedCar ? `${selectedCar.year} ${selectedCar.make} ${selectedCar.model}` : ''}
+      />
     </div>
   );
 }
