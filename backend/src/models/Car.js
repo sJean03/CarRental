@@ -226,12 +226,26 @@ class Car {
    */
   static async reject(carId, rejectionReason, adminNotes = null) {
     const query = `
-      UPDATE cars 
-      SET status = 'pending_approval', rejection_reason = $1, admin_notes = $2
+      UPDATE cars
+      SET status = 'rejected', rejection_reason = $1, admin_notes = $2
       WHERE id = $3
       RETURNING *
     `;
     const result = await db.query(query, [rejectionReason, adminNotes, carId]);
+    return result.rows[0];
+  }
+
+  /**
+   * Owner: Resubmit rejected car for approval
+   */
+  static async resubmit(carId) {
+    const query = `
+      UPDATE cars
+      SET status = 'pending_approval', rejection_reason = NULL, admin_notes = NULL
+      WHERE id = $1 AND status = 'rejected'
+      RETURNING *
+    `;
+    const result = await db.query(query, [carId]);
     return result.rows[0];
   }
 

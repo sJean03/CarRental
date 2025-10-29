@@ -15,7 +15,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TYPE user_role AS ENUM ('customer', 'owner', 'admin');
 CREATE TYPE transmission_type AS ENUM ('automatic', 'manual');
 CREATE TYPE fuel_type AS ENUM ('petrol', 'diesel', 'electric', 'hybrid');
-CREATE TYPE vehicle_status AS ENUM ('pending_approval', 'approved', 'listed', 'unavailable', 'suspended');
+CREATE TYPE vehicle_status AS ENUM ('pending_approval', 'approved', 'listed', 'unavailable', 'suspended', 'rejected');
 CREATE TYPE storage_option AS ENUM ('warehouse', 'owner_delivers');
 CREATE TYPE booking_status AS ENUM (
     'pending_payment',

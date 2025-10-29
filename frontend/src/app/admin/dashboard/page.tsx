@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Car as CarIcon, DollarSign, CreditCard, TrendingUp, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatCurrencyFull } from '@/lib/utils/formatNumber';
+import { RejectCarModal } from '@/components/admin/RejectCarModal';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -21,6 +22,8 @@ export default function AdminDashboard() {
   const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [selectedCar, setSelectedCar] = useState<Car | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== 'admin') {
@@ -69,16 +72,28 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRejectCar = async (carId: string) => {
+  const handleRejectCar = async (rejectionReason: string, adminNotes: string) => {
+    if (!selectedCar) return;
+
     try {
-      const response = await carsApi.reject(carId, 'Does not meet requirements', 'Rejected by admin');
+      const response = await carsApi.reject(selectedCar.id, rejectionReason, adminNotes);
       if (response.success) {
-        toast.success('Car rejected');
+        toast.success('Car rejected successfully');
         fetchData();
       }
     } catch (error) {
       toast.error('Failed to reject car');
     }
+  };
+
+  const openRejectModal = (car: Car) => {
+    setSelectedCar(car);
+    setRejectModalOpen(true);
+  };
+
+  const closeRejectModal = () => {
+    setRejectModalOpen(false);
+    setSelectedCar(null);
   };
 
   if (!isAuthenticated || !user) {
@@ -171,9 +186,17 @@ export default function AdminDashboard() {
                         </CardTitle>
                         <CardDescription>{car.license_plate}</CardDescription>
                       </div>
-                      <Badge className="bg-yellow-100 text-yellow-800">
-                        Pending Approval
-                      </Badge>
+                      <div className="flex gap-2">
+                        {car.status === 'rejected' ? (
+                          <Badge className="bg-red-100 text-red-800">
+                            Rejected
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-yellow-100 text-yellow-800">
+                            Pending Approval
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -209,6 +232,13 @@ export default function AdminDashboard() {
                         </div>
                       )}
 
+                      {car.rejection_reason && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                          <p className="text-sm font-medium text-red-900 mb-1">Rejection Reason:</p>
+                          <p className="text-sm text-red-800">{car.rejection_reason}</p>
+                        </div>
+                      )}
+
                       <div className="flex gap-2 pt-4 border-t">
                         <Button
                           size="sm"
@@ -222,7 +252,7 @@ export default function AdminDashboard() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleRejectCar(car.id)}
+                          onClick={() => openRejectModal(car)}
                           className="flex-1"
                         >
                           <X className="h-4 w-4 mr-2" />
@@ -301,6 +331,14 @@ export default function AdminDashboard() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Reject Car Modal */}
+      <RejectCarModal
+        isOpen={rejectModalOpen}
+        onClose={closeRejectModal}
+        onConfirm={handleRejectCar}
+        carName={selectedCar ? `${selectedCar.year} ${selectedCar.make} ${selectedCar.model}` : ''}
+      />
     </div>
   );
 }

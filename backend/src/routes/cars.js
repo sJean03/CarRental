@@ -84,4 +84,11 @@ router.put('/:id/approve', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), val
  */
 router.put('/:id/reject', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), validateUUID('id'), carController.rejectCar);
 
+/**
+ * @route   POST /api/cars/:id/resubmit
+ * @desc    Resubmit rejected car for approval
+ * @access  Private (Owner)
+ */
+router.post('/:id/resubmit', authMiddleware, ownerMiddleware, validateUUID('id'), carController.resubmitCar);
+
 module.exports = router;

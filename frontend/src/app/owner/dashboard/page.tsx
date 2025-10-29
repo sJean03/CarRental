@@ -60,8 +60,21 @@ export default function OwnerDashboard() {
       listed: 'bg-green-100 text-green-800',
       unavailable: 'bg-gray-100 text-gray-800',
       suspended: 'bg-red-100 text-red-800',
+      rejected: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const handleResubmit = async (carId: string) => {
+    try {
+      const response = await carsApi.resubmit(carId);
+      if (response.success) {
+        toast.success('Car resubmitted for approval');
+        fetchData();
+      }
+    } catch (error) {
+      toast.error('Failed to resubmit car');
+    }
   };
 
   const totalEarnings = bookings
@@ -125,6 +138,21 @@ export default function OwnerDashboard() {
             )}
           </CardContent>
         </Card>
+
+        {cars.filter((c) => c.status === 'rejected').length > 0 && (
+          <Card className="border-red-200 bg-red-50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+              <CarIcon className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-700">
+                {cars.filter((c) => c.status === 'rejected').length}
+              </div>
+              <p className="text-xs text-red-600 mt-1">Needs resubmission</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -194,20 +222,30 @@ export default function OwnerDashboard() {
               )}
 
               <div className="grid gap-4">
-                {/* Sort cars: pending first, then listed, then others */}
+                {/* Sort cars: rejected first, then pending, then listed, then others */}
                 {cars
                   .sort((a, b) => {
                     const statusOrder: Record<string, number> = {
-                      pending_approval: 0,
-                      listed: 1,
-                      approved: 2,
-                      unavailable: 3,
-                      suspended: 4,
+                      rejected: 0,
+                      pending_approval: 1,
+                      listed: 2,
+                      approved: 3,
+                      unavailable: 4,
+                      suspended: 5,
                     };
                     return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
                   })
                   .map((car) => (
-                    <Card key={car.id} className={car.status === 'pending_approval' ? 'border-yellow-200' : ''}>
+                    <Card
+                      key={car.id}
+                      className={
+                        car.status === 'pending_approval'
+                          ? 'border-yellow-200'
+                          : car.status === 'rejected'
+                          ? 'border-red-200'
+                          : ''
+                      }
+                    >
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div>
@@ -222,18 +260,38 @@ export default function OwnerDashboard() {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-2xl font-bold">₱{car.daily_rate.toLocaleString()}</p>
-                            <p className="text-sm text-gray-600">per day</p>
+                        <div className="space-y-4">
+                          {/* Rejection Reason */}
+                          {car.status === 'rejected' && car.rejection_reason && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                              <p className="text-sm font-medium text-red-900 mb-1">
+                                Rejection Reason:
+                              </p>
+                              <p className="text-sm text-red-800">{car.rejection_reason}</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="mt-3 border-red-300 text-red-700 hover:bg-red-50"
+                                onClick={() => handleResubmit(car.id)}
+                              >
+                                Edit & Resubmit
+                              </Button>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-2xl font-bold">₱{car.daily_rate.toLocaleString()}</p>
+                              <p className="text-sm text-gray-600">per day</p>
+                            </div>
+                            <div className="text-right text-sm">
+                              <p className="text-gray-600">Total Bookings</p>
+                              <p className="font-semibold">{car.total_bookings}</p>
+                            </div>
+                            <Button asChild size="sm">
+                              <Link href={`/owner/cars/${car.id}`}>Manage</Link>
+                            </Button>
                           </div>
-                          <div className="text-right text-sm">
-                            <p className="text-gray-600">Total Bookings</p>
-                            <p className="font-semibold">{car.total_bookings}</p>
-                          </div>
-                          <Button asChild size="sm">
-                            <Link href={`/owner/cars/${car.id}`}>Manage</Link>
-                          </Button>
                         </div>
                       </CardContent>
                     </Card>

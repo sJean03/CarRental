@@ -84,4 +84,10 @@ export const carsApi = {
     const response = await apiClient.put(`/cars/${id}/reject`, { rejection_reason, admin_notes });
     return response.data;
   },
+
+  // Owner: Resubmit rejected car
+  resubmit: async (id: string): Promise<ApiResponse<{ car: Car }>> => {
+    const response = await apiClient.post(`/cars/${id}/resubmit`);
+    return response.data;
+  },
 };
