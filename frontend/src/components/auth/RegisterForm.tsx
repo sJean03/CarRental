@@ -22,7 +22,9 @@ import toast from 'react-hot-toast';
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/, 'Password must contain at least one uppercase letter, one number, and one special character'),
   confirm_password: z.string(),
   first_name: z.string().min(2, 'First name is required'),
   last_name: z.string().min(2, 'Last name is required'),
@@ -249,6 +251,9 @@ export function RegisterForm() {
                   disabled={isLoading}
                 />
               </FormControl>
+              <p className="text-xs text-gray-500">
+                Password must be at least 8 characters and include at least one uppercase letter, one number, and one special character.
+              </p>
               <FormMessage />
             </FormItem>
           )}

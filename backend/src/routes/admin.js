@@ -67,4 +67,7 @@ router.get('/delist-requests', authMiddleware, roleMiddleware(USER_ROLES.ADMIN),
 router.put('/delist-requests/:id/approve', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), delistController.approveRequest);
 router.put('/delist-requests/:id/reject', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), delistController.rejectRequest);
 
+// Admin: Force delist car directly
+router.put('/cars/:id/delist', authMiddleware, roleMiddleware(USER_ROLES.ADMIN), delistController.forceDelistCar);
+
 module.exports = router;

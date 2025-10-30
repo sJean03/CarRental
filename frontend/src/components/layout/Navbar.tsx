@@ -44,7 +44,7 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <Car className="h-6 w-6 text-blue-600" />
+            <Car className="h-6 w-6 text-blue-700" />
             <span>RentEase</span>
           </Link>
 
@@ -53,7 +53,7 @@ export function Navbar() {
             <Link
               href="/cars"
               className={`text-sm font-medium transition-colors hover:text-blue-600 ${
-                pathname === '/cars' ? 'text-blue-600' : 'text-gray-700'
+                pathname === '/cars' ? 'text-blue-700' : 'text-gray-700'
               }`}
             >
               Browse Cars
@@ -62,8 +62,8 @@ export function Navbar() {
               <Link
                 href="/owner/cars/new"
                 className={`text-sm font-medium transition-colors hover:text-blue-600 ${
-                  pathname === '/owner/cars/new' ? 'text-blue-600' : 'text-gray-700'
-                }`}
+                    pathname === '/owner/cars/new' ? 'text-blue-700' : 'text-gray-700'
+                  }`}
               >
                 List Your Car
               </Link>

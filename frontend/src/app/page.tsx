@@ -6,14 +6,13 @@ export default function Home() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20">
-        <div className="container mx-auto px-4">
+<section className="relative bg-gradient-to-r from-gray-700 to-gray-900 text-white py-20">        <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-5xl font-bold mb-6">
               Rent a Car from Local Owners
             </h1>
-            <p className="text-xl mb-8 text-blue-100">
-              Find the perfect car for your next trip. Safe, affordable, and convenient.
+            <p className="text-xl mb-8 text-gray-200">
+              Find the perfect car for your next trip, Rent with ease in RentEase.
             </p>
             <div className="flex gap-4 justify-center">
               <Link href="/cars">
@@ -37,7 +36,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold text-center mb-12">Why Choose RentEase?</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-gradient text-blue-700 mb-4">
                 <Car className="h-8 w-8" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Wide Selection</h3>
@@ -47,7 +46,7 @@ export default function Home() {
             </div>
 
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-gradient text-blue-700 mb-4">
                 <Shield className="h-8 w-8" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Safe & Secure</h3>
@@ -57,7 +56,7 @@ export default function Home() {
             </div>
 
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-gradient text-blue-700 mb-4">
                 <DollarSign className="h-8 w-8" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Best Prices</h3>
@@ -67,7 +66,7 @@ export default function Home() {
             </div>
 
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-gradient text-blue-700 mb-4">
                 <Clock className="h-8 w-8" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Flexible Rentals</h3>
