@@ -13,6 +13,8 @@ class Payment {
       payment_plan,
       installment_number = null,
       is_initial_payment = false,
+      is_down_payment = false,
+      is_remaining_balance = false,
       card_last4,
       card_brand
     } = paymentData;
@@ -24,15 +26,17 @@ class Payment {
       INSERT INTO payments (
         booking_id, amount, payment_method, payment_plan,
         installment_number, is_initial_payment,
+        is_down_payment, is_remaining_balance,
         card_last4, card_brand, transaction_id, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
       RETURNING *
     `;
 
     const values = [
       booking_id, amount, payment_method, payment_plan,
       installment_number, is_initial_payment,
+      is_down_payment, is_remaining_balance,
       card_last4, card_brand, transaction_id
     ];
 
@@ -229,7 +233,7 @@ class Payment {
    */
   static async getRecent(limit = 10) {
     const query = `
-      SELECT 
+      SELECT
         p.*,
         b.booking_reference,
         u.first_name, u.last_name
@@ -242,6 +246,42 @@ class Payment {
 
     const result = await db.query(query, [limit]);
     return result.rows;
+  }
+
+  /**
+   * Check if down payment has been made for a booking
+   */
+  static async hasDownPayment(bookingId) {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM payments
+        WHERE booking_id = $1
+        AND payment_plan = 'downpayment'
+        AND is_down_payment = true
+        AND status = 'completed'
+      ) as has_payment
+    `;
+
+    const result = await db.query(query, [bookingId]);
+    return result.rows[0].has_payment;
+  }
+
+  /**
+   * Check if remaining balance has been paid for a booking
+   */
+  static async hasRemainingBalance(bookingId) {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM payments
+        WHERE booking_id = $1
+        AND payment_plan = 'downpayment'
+        AND is_remaining_balance = true
+        AND status = 'completed'
+      ) as has_payment
+    `;
+
+    const result = await db.query(query, [bookingId]);
+    return result.rows[0].has_payment;
   }
 }
 

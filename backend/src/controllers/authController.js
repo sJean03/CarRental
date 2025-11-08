@@ -22,7 +22,7 @@ const generateToken = (user) => {
  */
 const register = async (req, res, next) => {
   try {
-    const { email, password, first_name, last_name, phone_number, date_of_birth, role } = req.body;
+    const { email, password, first_name, last_name, phone_number, date_of_birth, role, drivers_license_photo_url } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findByEmail(email);
@@ -41,7 +41,8 @@ const register = async (req, res, next) => {
       last_name,
       phone_number,
       date_of_birth,
-      role: role || 'customer'
+      role: role || 'customer',
+      drivers_license_photo_url
     });
 
     // If registering as owner, create owner profile

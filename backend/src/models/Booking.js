@@ -454,6 +454,21 @@ class Booking {
     const result = await db.query(query);
     return result.rows;
   }
+
+  /**
+   * Mark remaining balance as paid
+   */
+  static async markRemainingBalancePaid(bookingId) {
+    const query = `
+      UPDATE bookings
+      SET remaining_balance_paid = true
+      WHERE id = $1
+      RETURNING *
+    `;
+
+    const result = await db.query(query, [bookingId]);
+    return result.rows[0];
+  }
 }
 
 module.exports = Booking;

@@ -13,7 +13,8 @@ class User {
       last_name,
       phone_number,
       date_of_birth,
-      role = 'customer'
+      role = 'customer',
+      drivers_license_photo_url
     } = userData;
 
     // Hash password
@@ -21,12 +22,12 @@ class User {
     const password_hash = await bcrypt.hash(password, saltRounds);
 
     const query = `
-      INSERT INTO users (email, password_hash, first_name, last_name, phone_number, date_of_birth, role)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO users (email, password_hash, first_name, last_name, phone_number, date_of_birth, role, drivers_license_photo_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id, email, first_name, last_name, phone_number, date_of_birth, role, is_verified, is_active, created_at
     `;
 
-    const values = [email, password_hash, first_name, last_name, phone_number, date_of_birth, role];
+    const values = [email, password_hash, first_name, last_name, phone_number, date_of_birth, role, drivers_license_photo_url];
     const result = await db.query(query, values);
     return result.rows[0];
   }

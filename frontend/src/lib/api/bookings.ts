@@ -8,7 +8,7 @@ export const bookingsApi = {
     pickup_date: string;
     return_date: string;
     branch_id?: string;
-    payment_plan?: 'full' | 'installment';
+    payment_plan?: 'downpayment' | 'installment';
     installment_months?: number;
     customer_notes?: string;
   }): Promise<ApiResponse<{ booking: Booking }>> => {

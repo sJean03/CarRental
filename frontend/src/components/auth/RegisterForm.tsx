@@ -13,12 +13,16 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FileUpload } from '@/components/ui/file-upload';
 import { authApi } from '@/lib/api/auth';
 import { useAuthStore } from '@/lib/store/authStore';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -32,8 +36,12 @@ const registerSchema = z.object({
     .regex(/^\+63\s?\d{3}\s?\d{3}\s?\d{4}$/, 'Phone number must be in format: +63 917 688 5315')
     .optional()
     .or(z.literal('')),
+  drivers_license_photo_url: z.string().min(1, "Driver's license photo is required"),
   profile_photo_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   role: z.enum(['customer', 'owner']),
+  terms_accepted: z.boolean().refine((val) => val === true, {
+    message: 'You must accept the terms and conditions to continue',
+  }),
 }).refine((data) => data.password === data.confirm_password, {
   message: "Passwords don't match",
   path: ['confirm_password'],
@@ -55,8 +63,10 @@ export function RegisterForm() {
       first_name: '',
       last_name: '',
       phone_number: '',
+      drivers_license_photo_url: '',
       profile_photo_url: '',
       role: 'customer',
+      terms_accepted: false,
     },
   });
 
@@ -90,7 +100,7 @@ export function RegisterForm() {
   const onSubmit = async (data: RegisterFormValues) => {
     try {
       setIsLoading(true);
-      const { confirm_password, ...registerData } = data;
+      const { confirm_password, terms_accepted, ...registerData } = data;
       const response = await authApi.register(registerData);
 
       if (response.success && response.data) {
@@ -195,6 +205,28 @@ export function RegisterForm() {
 
         <FormField
           control={form.control}
+          name="drivers_license_photo_url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Driver's License Photo *</FormLabel>
+              <FormControl>
+                <FileUpload
+                  onUploadComplete={(url) => field.onChange(url)}
+                  onUploadError={(error) => toast.error(error)}
+                  value={field.value}
+                  disabled={isLoading}
+                />
+              </FormControl>
+              <FormDescription>
+                Upload a clear photo of your valid driver's license for verification
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="profile_photo_url"
           render={({ field }) => (
             <FormItem>
@@ -233,6 +265,46 @@ export function RegisterForm() {
                 </SelectContent>
               </Select>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="terms_accepted"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={isLoading}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  I agree to the{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Terms and Conditions
+                  </Link>{' '}
+                  and{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Privacy Policy
+                  </Link>
+                </FormLabel>
+                <FormDescription>
+                  You must accept the terms and conditions to create an account
+                </FormDescription>
+                <FormMessage />
+              </div>
             </FormItem>
           )}
         />

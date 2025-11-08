@@ -42,6 +42,8 @@ const processPayment = async (req, res, next) => {
     // Determine payment amount
     let paymentAmount;
     let isInitialPayment = false;
+    let isDownPayment = false;
+    let isRemainingBalance = false;
     let currentInstallmentNumber = installment_number;
 
     if (booking.payment_plan === 'installment') {
@@ -58,6 +60,19 @@ const processPayment = async (req, res, next) => {
       }
 
       paymentAmount = booking.monthly_payment;
+    } else if (booking.payment_plan === 'downpayment') {
+      // Down payment plan - check if this is the initial 20% or the remaining 80%
+      const hasDownPayment = await Payment.hasDownPayment(booking_id);
+
+      if (!hasDownPayment) {
+        // This is the 20% down payment
+        isDownPayment = true;
+        paymentAmount = booking.down_payment_amount;
+      } else {
+        // This is the remaining 80% balance (paid at pickup)
+        isRemainingBalance = true;
+        paymentAmount = booking.remaining_balance;
+      }
     } else {
       // Full payment
       paymentAmount = booking.total_amount;
@@ -71,6 +86,8 @@ const processPayment = async (req, res, next) => {
       payment_plan: booking.payment_plan,
       installment_number: booking.payment_plan === 'installment' ? currentInstallmentNumber : null,
       is_initial_payment: isInitialPayment,
+      is_down_payment: isDownPayment,
+      is_remaining_balance: isRemainingBalance,
       card_last4,
       card_brand
     };
@@ -84,16 +101,25 @@ const processPayment = async (req, res, next) => {
       // Update booking status
       let newBookingStatus;
 
-      if (booking.payment_plan === 'full') {
-        // Full payment confirmed, now needs owner confirmation
-        newBookingStatus = BOOKING_STATUS.PENDING_OWNER_CONFIRMATION;
-      } else {
+      if (booking.payment_plan === 'downpayment') {
+        if (isDownPayment) {
+          // Down payment (20%) confirmed, move to pending owner confirmation
+          newBookingStatus = BOOKING_STATUS.PENDING_OWNER_CONFIRMATION;
+        } else if (isRemainingBalance) {
+          // Remaining balance (80%) paid at pickup, mark as paid
+          await Booking.markRemainingBalancePaid(booking_id);
+          newBookingStatus = booking.status; // Keep current status
+        }
+      } else if (booking.payment_plan === 'installment') {
         // For installment, move to pending owner confirmation only after first payment
         if (isInitialPayment) {
           newBookingStatus = BOOKING_STATUS.PENDING_OWNER_CONFIRMATION;
         } else {
           newBookingStatus = booking.status; // Keep current status for subsequent payments
         }
+      } else {
+        // Full payment confirmed, now needs owner confirmation
+        newBookingStatus = BOOKING_STATUS.PENDING_OWNER_CONFIRMATION;
       }
 
       await Booking.updateStatus(booking_id, newBookingStatus);

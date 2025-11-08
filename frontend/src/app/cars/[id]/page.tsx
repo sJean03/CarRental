@@ -108,7 +108,7 @@ export default function CarDetailPage() {
         car_id: params.id as string,
         pickup_date: format(dateRange.from, 'yyyy-MM-dd'),
         return_date: format(dateRange.to, 'yyyy-MM-dd'),
-        payment_plan: 'full',
+        payment_plan: 'downpayment',
       });
 
       if (response.success && response.data) {

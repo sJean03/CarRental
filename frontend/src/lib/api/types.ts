@@ -92,7 +92,7 @@ export type BookingStatus =
   | 'cancelled'
   | 'cancelled_with_refund';
 
-export type PaymentPlanType = 'full' | 'installment';
+export type PaymentPlanType = 'downpayment' | 'installment';
 
 export interface Booking {
   id: string;
@@ -111,6 +111,9 @@ export interface Booking {
   payment_plan: PaymentPlanType;
   installment_months?: number;
   monthly_payment?: number;
+  down_payment_amount?: number;
+  remaining_balance?: number;
+  remaining_balance_paid: boolean;
   status: BookingStatus;
   owner_dropoff_at?: string;
   customer_pickup_at?: string;
@@ -158,6 +161,8 @@ export interface Payment {
   payment_plan: PaymentPlanType;
   installment_number?: number;
   is_initial_payment: boolean;
+  is_down_payment: boolean;
+  is_remaining_balance: boolean;
   card_last4?: string;
   card_brand?: string;
   transaction_id: string;
