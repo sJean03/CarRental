@@ -11,6 +11,7 @@ export const authApi = {
     phone_number?: string;
     date_of_birth?: string;
     role?: 'customer' | 'owner';
+    drivers_license_photo_url: string;
   }): Promise<ApiResponse<LoginResponse>> => {
     const response = await apiClient.post('/auth/register', data);
     return response.data;

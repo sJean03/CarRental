@@ -257,7 +257,7 @@ export default function BecomeOwnerPage() {
           <div>
             <h4 className="font-semibold mb-1">What's the platform fee?</h4>
             <p className="text-sm text-muted-foreground">
-              RentEase charges 10% of each booking. You keep 90% of the rental fee.
+              RentEase charges 2% of each booking. You keep 98% of the rental fee.
             </p>
           </div>
         </CardContent>

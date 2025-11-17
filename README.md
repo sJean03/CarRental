@@ -36,7 +36,7 @@ docker-compose up -d
 
 ### Booking System
 - ✅ Date range selection with calendar
-- ✅ Automatic price calculation (10% platform fee)
+- ✅ Automatic price calculation (2% platform fee)
 - ✅ Payment plans (full payment or 12-month installment)
 - ✅ Complete booking workflow with status tracking:
   - pending_payment → payment_confirmed → confirmed → active → returned → completed
@@ -106,8 +106,8 @@ docker-compose up -d
 - ✅ **Booking detail page** - Full timeline and information
 - ✅ **Payment installments tracking**
 - ✅ **Late fee calculations**
-- ✅ **Platform fee (10%)** automatic calculation
-- ✅ **Owner earnings (90%)** after platform fee
+- ✅ **Platform fee (2%)** automatic calculation
+- ✅ **Owner earnings (98%)** after platform fee
 
 ## Tech Stack
 

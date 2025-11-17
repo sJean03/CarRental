@@ -67,7 +67,7 @@ const createBooking = async (req, res, next) => {
       return_date,
       branch_id: branch_id || car.home_branch_id,
       daily_rate: car.daily_rate,
-      payment_plan: payment_plan || 'full',
+      payment_plan: payment_plan || 'downpayment',
       installment_months: payment_plan === 'installment' ? installment_months : null,
       customer_notes
     };

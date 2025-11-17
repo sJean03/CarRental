@@ -193,7 +193,7 @@ export default function OwnerEarningsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between text-red-600">
-                      <span>Platform Fee (10%)</span>
+                      <span>Platform Fee (2%)</span>
                       <span title={formatCurrencyFull(payout.platform_fee)}>
                         -{formatCurrency(payout.platform_fee)}
                       </span>

@@ -1,5 +1,5 @@
 export const APP_NAME = 'RentEase';
-export const PLATFORM_FEE_PERCENTAGE = 10;
+export const PLATFORM_FEE_PERCENTAGE = 2;
 export const CANCELLATION_WINDOW_HOURS = 24;
 
 export const BOOKING_STATUS = {

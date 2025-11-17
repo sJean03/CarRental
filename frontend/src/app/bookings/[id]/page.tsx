@@ -294,7 +294,7 @@ export default function BookingDetailPage() {
                 <span>₱{booking.subtotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Platform Fee (10%)</span>
+                <span>Platform Fee (2%)</span>
                 <span>₱{booking.platform_fee.toLocaleString()}</span>
               </div>
               {booking.late_fee > 0 && (

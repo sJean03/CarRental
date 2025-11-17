@@ -229,7 +229,7 @@ const validateBookingCreate = validate({
   pickup_date: { required: true, type: 'date' },
   return_date: { required: true, type: 'date' },
   branch_id: { required: false, type: 'uuid' },
-  payment_plan: { required: false, in: ['full', 'installment'] },
+  payment_plan: { required: false, in: ['downpayment', 'installment'] },
   installment_months: { required: false, min: 1, max: 12 }
 });
 

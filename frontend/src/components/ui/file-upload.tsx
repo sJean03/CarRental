@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useId } from 'react';
 import { Upload, X, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
@@ -24,6 +24,7 @@ export function FileUpload({
   value,
   disabled = false,
 }: FileUploadProps) {
+  const fileInputId = useId(); // Generate unique ID for this instance
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(value || null);
@@ -199,7 +200,7 @@ export function FileUpload({
         )}
       >
         <label
-          htmlFor="file-upload"
+          htmlFor={fileInputId}
           className={cn(
             'flex flex-col items-center justify-center p-6 cursor-pointer',
             disabled && 'cursor-not-allowed'
@@ -233,12 +234,13 @@ export function FileUpload({
           )}
         </label>
         <input
-          id="file-upload"
+          id={fileInputId}
           type="file"
           className="hidden"
           accept={accept}
           onChange={handleFileSelect}
           disabled={disabled || isUploading}
+          aria-label="File upload input"
         />
       </div>
 

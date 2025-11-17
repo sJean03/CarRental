@@ -123,7 +123,7 @@ All environment variables are configured in `docker-compose.yml`:
 **Backend Environment:**
 - Database connection (uses service name `postgres` instead of `localhost`)
 - JWT secret
-- Platform settings (10% fee, warehouse costs, etc.)
+- Platform settings (2% fee, warehouse costs, etc.)
 - Mock payment enabled
 
 **Frontend Environment:**

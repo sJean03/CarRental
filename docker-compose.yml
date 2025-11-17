@@ -91,12 +91,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:5000/api"
+        NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: "dwhgaojkj"
+        NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET: "rentease_licenses"
     container_name: rentease-frontend
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:5000/api
       NODE_ENV: production
-      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: your_cloud_name_here
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: dwhgaojkj
       NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET: rentease_licenses
     ports:
       - "3000:3000"

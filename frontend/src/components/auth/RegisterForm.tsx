@@ -37,7 +37,6 @@ const registerSchema = z.object({
     .optional()
     .or(z.literal('')),
   drivers_license_photo_url: z.string().min(1, "Driver's license photo is required"),
-  profile_photo_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   role: z.enum(['customer', 'owner']),
   terms_accepted: z.boolean().refine((val) => val === true, {
     message: 'You must accept the terms and conditions to continue',
@@ -64,7 +63,6 @@ export function RegisterForm() {
       last_name: '',
       phone_number: '',
       drivers_license_photo_url: '',
-      profile_photo_url: '',
       role: 'customer',
       terms_accepted: false,
     },
@@ -101,7 +99,9 @@ export function RegisterForm() {
     try {
       setIsLoading(true);
       const { confirm_password, terms_accepted, ...registerData } = data;
+      console.log('Submitting registration with data:', registerData);
       const response = await authApi.register(registerData);
+      console.log('Registration response:', response);
 
       if (response.success && response.data) {
         const { user, token } = response.data;
@@ -118,9 +118,14 @@ export function RegisterForm() {
         } else {
           router.push('/dashboard');
         }
+      } else {
+        // Handle case where success is false
+        const message = response.message || 'Registration failed. Please try again.';
+        toast.error(message);
       }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Registration failed. Please try again.';
+      console.error('Registration error:', error);
+      const message = error.response?.data?.message || error.message || 'Registration failed. Please try again.';
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -220,28 +225,6 @@ export function RegisterForm() {
               <FormDescription>
                 Upload a clear photo of your valid driver's license for verification
               </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="profile_photo_url"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Profile Photo URL (Optional)</FormLabel>
-              <FormControl>
-                <Input
-                  type="url"
-                  placeholder="https://example.com/photo.jpg"
-                  {...field}
-                  disabled={isLoading}
-                />
-              </FormControl>
-              <p className="text-xs text-gray-500">
-                Enter a URL to your profile photo (e.g., from Imgur, Google Drive)
-              </p>
               <FormMessage />
             </FormItem>
           )}

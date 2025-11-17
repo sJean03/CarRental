@@ -1,6 +1,6 @@
 module.exports = {
   // Platform fees
-  PLATFORM_FEE_PERCENTAGE: 0.10, // 10%
+  PLATFORM_FEE_PERCENTAGE: 0.02, // 2%
   
   // Warehouse fees by location
   WAREHOUSE_FEES: {

@@ -79,7 +79,7 @@ export default function OwnerDashboard() {
 
   const totalEarnings = bookings
     .filter((b) => b.status === 'completed')
-    .reduce((sum, b) => sum + b.total_amount * 0.9, 0); // 90% after platform fee
+    .reduce((sum, b) => sum + b.total_amount * 0.98, 0); // 98% after platform fee
 
   if (!isAuthenticated || !user) {
     return null;
@@ -361,7 +361,7 @@ export default function OwnerDashboard() {
                       <div>
                         <p className="text-gray-600">Earnings</p>
                         <p className="font-medium">
-                          ₱{(booking.total_amount * 0.9).toLocaleString()}
+                          ₱{(booking.total_amount * 0.98).toLocaleString()}
                         </p>
                       </div>
                     </div>

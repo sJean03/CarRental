@@ -130,7 +130,7 @@ export default function OwnerCarDetailPage() {
 
   const totalEarnings = bookings
     .filter((b) => b.status === 'completed')
-    .reduce((sum, b) => sum + b.total_amount * 0.9, 0); // 90% after platform fee
+    .reduce((sum, b) => sum + b.total_amount * 0.98, 0); // 98% after platform fee
 
   const pendingBookings = bookings.filter((b) => b.status === 'pending_owner_confirmation');
   const activeBookings = bookings.filter((b) => ['confirmed', 'active', 'awaiting_vehicle_dropoff', 'ready_for_pickup'].includes(b.status));
@@ -362,7 +362,7 @@ export default function OwnerCarDetailPage() {
                         <div>
                           <p className="text-gray-600">Your Earnings</p>
                           <p className="font-medium">
-                            ₱{(booking.total_amount * 0.9).toLocaleString()}
+                            ₱{(booking.total_amount * 0.98).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -418,7 +418,7 @@ export default function OwnerCarDetailPage() {
                         <div>
                           <p className="text-gray-600">Your Earnings</p>
                           <p className="font-medium">
-                            ₱{(booking.total_amount * 0.9).toLocaleString()}
+                            ₱{(booking.total_amount * 0.98).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -462,7 +462,7 @@ export default function OwnerCarDetailPage() {
                         <div>
                           <p className="text-gray-600">Your Earnings</p>
                           <p className="font-medium">
-                            ₱{(booking.total_amount * 0.9).toLocaleString()}
+                            ₱{(booking.total_amount * 0.98).toLocaleString()}
                           </p>
                         </div>
                       </div>

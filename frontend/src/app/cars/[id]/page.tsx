@@ -7,6 +7,7 @@ import { carsApi } from '@/lib/api/cars';
 import { bookingsApi } from '@/lib/api/bookings';
 import { Car } from '@/lib/api/types';
 import { useAuthStore } from '@/lib/store/authStore';
+import { PLATFORM_FEE_PERCENTAGE } from '@/lib/utils/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -76,7 +77,7 @@ export default function CarDetailPage() {
       (dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)
     ) + 1;
     const subtotal = car.daily_rate * days;
-    const platformFee = subtotal * 0.1;
+    const platformFee = subtotal * (PLATFORM_FEE_PERCENTAGE / 100);
     return subtotal + platformFee;
   };
 
@@ -272,7 +273,7 @@ export default function CarDetailPage() {
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span>Platform fee (10%)</span>
+                    <span>Platform fee (2%)</span>
                     <span>
                       ₱
                       {(
@@ -281,7 +282,7 @@ export default function CarDetailPage() {
                           (dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)
                         ) +
                           1) *
-                        0.1
+                        (PLATFORM_FEE_PERCENTAGE / 100)
                       ).toLocaleString()}
                     </span>
                   </div>

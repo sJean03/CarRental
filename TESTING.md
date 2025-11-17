@@ -216,7 +216,7 @@ npm run dev
 4. [ ] Toyota Vios appears in "My Cars" tab with "listed" badge
 5. [ ] Switch to "Bookings" tab
 6. [ ] See the customer's booking
-7. [ ] Earnings calculation shows (90% of total)
+7. [ ] Earnings calculation shows (98% of total)
 
 **List Another Car**
 1. [ ] Click "List a Car"
@@ -337,7 +337,7 @@ Should return user object with token.
 ## Notes
 
 - Mock payment system - any card number works
-- Platform fee is automatically 10% of subtotal
-- Owner earnings are 90% (platform keeps 10%)
+- Platform fee is automatically 2% of subtotal
+- Owner earnings are 98% (platform keeps 2%)
 - Car approval is required before listing becomes visible
 - Booking status progresses automatically through payment
