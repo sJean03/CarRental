@@ -1,0 +1,2528 @@
+openapi: 3.0.3
+info:
+  title: RentEase Marketplace API
+  description: |
+    RentEase is a Turo-style P2P car rental marketplace platform for the Philippines.
+    
+    ## Authentication
+    Most endpoints require JWT authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+    
+    ## Base URL
+    Development: `http://localhost:5000/api`
+    
+    ## Features
+    - User authentication (Customer, Owner, Admin roles)
+    - Car listing management
+    - Booking/reservation system
+    - Payment processing (mock implementation)
+    - Owner dashboard and earnings
+    - Admin approval workflow
+    
+  version: 1.0.0
+  contact:
+    name: RentEase Support
+    email: support@rentease.ph
+
+servers:
+  - url: http://localhost:5000/api
+    description: Development server
+  - url: https://api.rentease.ph/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User registration, login, and profile management
+  - name: Cars
+    description: Car listing operations (CRUD, search, availability)
+  - name: Bookings
+    description: Booking/reservation management
+  - name: Payments
+    description: Payment processing and management
+  - name: Health
+    description: API health check
+
+security:
+  - BearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: API Health Check
+      description: Check if the API is running
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "RentEase API is running"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  environment:
+                    type: string
+                    example: "development"
+
+  # ==================== AUTHENTICATION ENDPOINTS ====================
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account (customer or owner)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - first_name
+                - last_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "juan.delacruz@example.com"
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: "SecurePass123!"
+                first_name:
+                  type: string
+                  example: "Juan"
+                last_name:
+                  type: string
+                  example: "Dela Cruz"
+                phone_number:
+                  type: string
+                  example: "+639171234567"
+                date_of_birth:
+                  type: string
+                  format: date
+                  example: "1990-01-15"
+                role:
+                  type: string
+                  enum: [customer, owner]
+                  default: customer
+                  example: "customer"
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Registration successful"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "juan.delacruz@example.com"
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Login successful"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      token:
+                        type: string
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Account deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user profile
+      description: Retrieve authenticated user's profile information
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      ownerProfile:
+                        $ref: '#/components/schemas/VehicleOwner'
+                        nullable: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Authentication
+      summary: Update user profile
+      description: Update current user's profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                  example: "Juan"
+                last_name:
+                  type: string
+                  example: "Dela Cruz"
+                phone_number:
+                  type: string
+                  example: "+639171234567"
+                date_of_birth:
+                  type: string
+                  format: date
+                  example: "1990-01-15"
+                driver_license_number:
+                  type: string
+                  example: "N01-12-345678"
+                driver_license_expiry:
+                  type: string
+                  format: date
+                  example: "2027-12-31"
+                profile_photo_url:
+                  type: string
+                  format: uri
+                  example: "https://example.com/photos/profile.jpg"
+                drivers_license_photo_url:
+                  type: string
+                  format: uri
+                  example: "https://example.com/photos/license.jpg"
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Profile updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          description: No valid fields to update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/change-password:
+    put:
+      tags:
+        - Authentication
+      summary: Change password
+      description: Change current user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_password
+                - new_password
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                  example: "OldPass123!"
+                new_password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: "NewSecurePass456!"
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Password changed successfully"
+        '401':
+          description: Current password incorrect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout
+      description: Logout current user (client should delete token)
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+
+  # ==================== CAR ENDPOINTS ====================
+  /cars:
+    get:
+      tags:
+        - Cars
+      summary: Get all cars
+      description: Retrieve all car listings with optional filters
+      security: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending_approval, approved, listed, unavailable, suspended]
+          description: Filter by car status (default: listed)
+        - name: category_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by vehicle category
+        - name: transmission
+          in: query
+          schema:
+            type: string
+            enum: [automatic, manual]
+          description: Filter by transmission type
+        - name: fuel_type
+          in: query
+          schema:
+            type: string
+            enum: [petrol, diesel, electric, hybrid]
+          description: Filter by fuel type
+        - name: min_seats
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Minimum seating capacity
+        - name: min_price
+          in: query
+          schema:
+            type: number
+            format: float
+          description: Minimum daily rate
+        - name: max_price
+          in: query
+          schema:
+            type: number
+            format: float
+          description: Maximum daily rate
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by home branch/location
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by make or model
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: created_at
+            enum: [created_at, daily_rate, average_rating]
+          description: Sort field
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            default: DESC
+            enum: [ASC, DESC]
+          description: Sort order
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Number of results per page
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Cars retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 15
+                  data:
+                    type: object
+                    properties:
+                      cars:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Car'
+
+    post:
+      tags:
+        - Cars
+      summary: Create car listing
+      description: Create a new car listing (Owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarCreate'
+      responses:
+        '201':
+          description: Car listing created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Car listing created successfully. Awaiting admin approval."
+                  data:
+                    type: object
+                    properties:
+                      car:
+                        $ref: '#/components/schemas/Car'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /cars/my-cars:
+    get:
+      tags:
+        - Cars
+      summary: Get my cars
+      description: Get current owner's car listings
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending_approval, approved, listed, unavailable, suspended]
+          description: Filter by car status
+      responses:
+        '200':
+          description: Cars retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: object
+                    properties:
+                      cars:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Car'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /cars/{id}:
+    get:
+      tags:
+        - Cars
+      summary: Get car by ID
+      description: Retrieve detailed information about a specific car
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Car ID
+      responses:
+        '200':
+          description: Car retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      car:
+                        $ref: '#/components/schemas/Car'
+        '404':
+          description: Car not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Cars
+      summary: Update car listing
+      description: Update car details (Owner only, must own the car)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Car ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarUpdate'
+      responses:
+        '200':
+          description: Car updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Car updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      car:
+                        $ref: '#/components/schemas/Car'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Car not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Cars
+      summary: Delete car listing
+      description: Delete a car listing (Owner only, no active bookings)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Car ID
+      responses:
+        '200':
+          description: Car deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Car deleted successfully"
+        '400':
+          description: Cannot delete car with active bookings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Car not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cars/{id}/availability:
+    get:
+      tags:
+        - Cars
+      summary: Check car availability
+      description: Check if a car is available for specific dates
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Car ID
+        - name: pickup_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Pickup date (YYYY-MM-DD)
+        - name: return_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Return date (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Availability check completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      available:
+                        type: boolean
+                        example: true
+                      pickup_date:
+                        type: string
+                        format: date
+                        example: "2025-11-01"
+                      return_date:
+                        type: string
+                        format: date
+                        example: "2025-11-05"
+        '400':
+          description: Missing required query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cars/{id}/blocked-dates:
+    get:
+      tags:
+        - Cars
+      summary: Get blocked dates
+      description: Get all blocked date ranges for a car
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Car ID
+      responses:
+        '200':
+          description: Blocked dates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      blockedDates:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            blocked_from:
+                              type: string
+                              format: date
+                              example: "2025-11-15"
+                            blocked_until:
+                              type: string
+                              format: date
+                              example: "2025-11-20"
+                            reason:
+                              type: string
+                              example: "Personal use"
+
+  /cars/{id}/block-dates:
+    post:
+      tags:
+        - Cars
+      summary: Block dates for car
+      description: Block specific date ranges to prevent bookings (Owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Car ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - blocked_from
+                - blocked_until
+              properties:
+                blocked_from:
+                  type: string
+                  format: date
+                  example: "2025-11-15"
+                blocked_until:
+                  type: string
+                  format: date
+                  example: "2025-11-20"
+                reason:
+                  type: string
+                  example: "Maintenance"
+      responses:
+        '201':
+          description: Dates blocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dates blocked successfully"
+                  data:
+                    type: object
+                    properties:
+                      blocked:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          car_id:
+                            type: string
+                            format: uuid
+                          blocked_from:
+                            type: string
+                            format: date
+                          blocked_until:
+                            type: string
+                            format: date
+                          reason:
+                            type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Car not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cars/{id}/approve:
+    put:
+      tags:
+        - Cars
+      summary: Approve car listing
+      description: Approve a pending car listing (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Car ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                admin_notes:
+                  type: string
+                  example: "All documents verified"
+      responses:
+        '200':
+          description: Car approved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Car approved successfully"
+                  data:
+                    type: object
+                    properties:
+                      car:
+                        $ref: '#/components/schemas/Car'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Car not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cars/{id}/reject:
+    put:
+      tags:
+        - Cars
+      summary: Reject car listing
+      description: Reject a pending car listing (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Car ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rejection_reason
+              properties:
+                rejection_reason:
+                  type: string
+                  example: "Incomplete vehicle documentation"
+                admin_notes:
+                  type: string
+                  example: "Need updated registration"
+      responses:
+        '200':
+          description: Car rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Car rejected"
+                  data:
+                    type: object
+                    properties:
+                      car:
+                        $ref: '#/components/schemas/Car'
+        '400':
+          description: Rejection reason required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Car not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== BOOKING ENDPOINTS ====================
+  /bookings:
+    post:
+      tags:
+        - Bookings
+      summary: Create booking
+      description: Create a new booking/reservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreate'
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking created successfully. Please proceed with payment."
+                  data:
+                    type: object
+                    properties:
+                      booking:
+                        $ref: '#/components/schemas/Booking'
+        '400':
+          description: Validation error or car not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Car not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Car not available for selected dates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/my-bookings:
+    get:
+      tags:
+        - Bookings
+      summary: Get my bookings
+      description: Get current user's bookings
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending_payment, payment_confirmed, pending_owner_confirmation, confirmed, awaiting_vehicle_dropoff, ready_for_pickup, active, awaiting_return, returned, completed, cancelled, cancelled_with_refund]
+          description: Filter by booking status
+      responses:
+        '200':
+          description: Bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 3
+                  data:
+                    type: object
+                    properties:
+                      bookings:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /bookings/owner-bookings:
+    get:
+      tags:
+        - Bookings
+      summary: Get owner bookings
+      description: Get bookings for current owner's cars
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter by booking status
+      responses:
+        '200':
+          description: Bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 8
+                  data:
+                    type: object
+                    properties:
+                      bookings:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Owner profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/stats:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking statistics
+      description: Get booking statistics for current user
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      stats:
+                        type: object
+                        properties:
+                          total_bookings:
+                            type: integer
+                            example: 25
+                          completed_bookings:
+                            type: integer
+                            example: 20
+                          cancelled_bookings:
+                            type: integer
+                            example: 3
+                          active_bookings:
+                            type: integer
+                            example: 2
+                          total_revenue:
+                            type: number
+                            format: float
+                            example: 125000.00
+                          avg_booking_value:
+                            type: number
+                            format: float
+                            example: 5000.00
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /bookings/{id}:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking by ID
+      description: Retrieve detailed booking information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Booking ID
+      responses:
+        '200':
+          description: Booking retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      booking:
+                        $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/reference/{reference}:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking by reference
+      description: Retrieve booking by reference number
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Booking reference (e.g., RE-20251101-ABC123)
+      responses:
+        '200':
+          description: Booking retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      booking:
+                        $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{id}/cancel:
+    put:
+      tags:
+        - Bookings
+      summary: Cancel booking
+      description: Cancel a booking (Customer only, with refund calculation)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Booking ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancellation_reason:
+                  type: string
+                  example: "Change of plans"
+      responses:
+        '200':
+          description: Booking cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking cancelled successfully"
+                  data:
+                    type: object
+                    properties:
+                      booking:
+                        $ref: '#/components/schemas/Booking'
+                      refund_amount:
+                        type: number
+                        format: float
+                        example: 5500.00
+        '400':
+          description: Cannot cancel booking in current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{id}/confirm:
+    put:
+      tags:
+        - Bookings
+      summary: Confirm booking
+      description: Owner confirms booking after payment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Booking ID
+      responses:
+        '200':
+          description: Booking confirmed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking confirmed successfully"
+                  data:
+                    type: object
+                    properties:
+                      booking:
+                        $ref: '#/components/schemas/Booking'
+        '400':
+          description: Booking cannot be confirmed in current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{id}/status:
+    put:
+      tags:
+        - Bookings
+      summary: Update booking status
+      description: Update booking workflow status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Booking ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [payment_confirmed, pending_owner_confirmation, confirmed, awaiting_vehicle_dropoff, ready_for_pickup, active, awaiting_return, returned, completed]
+                  example: "active"
+      responses:
+        '200':
+          description: Booking status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking status updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      booking:
+                        $ref: '#/components/schemas/Booking'
+        '400':
+          description: Status is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== PAYMENT ENDPOINTS ====================
+  /payments/process:
+    post:
+      tags:
+        - Payments
+      summary: Process payment
+      description: Process payment for a booking (mock implementation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - booking_id
+                - payment_method
+              properties:
+                booking_id:
+                  type: string
+                  format: uuid
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                payment_method:
+                  type: string
+                  enum: [credit_card, debit_card]
+                  example: "credit_card"
+                card_last4:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+                  example: "1234"
+                card_brand:
+                  type: string
+                  example: "Visa"
+                installment_number:
+                  type: integer
+                  minimum: 1
+                  description: For installment payments (subsequent payments)
+      responses:
+        '200':
+          description: Payment processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Payment processed successfully"
+                  data:
+                    type: object
+                    properties:
+                      payment:
+                        $ref: '#/components/schemas/Payment'
+                      booking_status:
+                        type: string
+                        example: "payment_confirmed"
+        '400':
+          description: Payment processing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments/{id}:
+    get:
+      tags:
+        - Payments
+      summary: Get payment by ID
+      description: Retrieve payment details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Payment ID
+      responses:
+        '200':
+          description: Payment retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      payment:
+                        $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments/booking/{booking_id}:
+    get:
+      tags:
+        - Payments
+      summary: Get payments for booking
+      description: Get all payments associated with a booking
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Booking ID
+      responses:
+        '200':
+          description: Payments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 3
+                  data:
+                    type: object
+                    properties:
+                      payments:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments/booking/{booking_id}/installments:
+    get:
+      tags:
+        - Payments
+      summary: Get pending installments
+      description: Get pending installment information for a booking
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Booking ID
+      responses:
+        '200':
+          description: Installment info retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      totalInstallments:
+                        type: integer
+                        example: 12
+                      paidInstallments:
+                        type: integer
+                        example: 3
+                      remainingInstallments:
+                        type: integer
+                        example: 9
+                      nextInstallmentNumber:
+                        type: integer
+                        example: 4
+                      installmentAmount:
+                        type: number
+                        format: float
+                        example: 458.33
+        '400':
+          description: Booking does not use installment payment plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments/{id}/refund:
+    post:
+      tags:
+        - Payments
+      summary: Process refund
+      description: Process payment refund (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Payment ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refund_amount
+                - refund_reason
+              properties:
+                refund_amount:
+                  type: number
+                  format: float
+                  example: 2500.00
+                refund_reason:
+                  type: string
+                  example: "Booking cancelled by customer"
+      responses:
+        '200':
+          description: Refund processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Refund processed successfully"
+                  data:
+                    type: object
+                    properties:
+                      payment:
+                        $ref: '#/components/schemas/Payment'
+        '400':
+          description: Only completed payments can be refunded or refund amount exceeds payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments/stats:
+    get:
+      tags:
+        - Payments
+      summary: Get payment statistics
+      description: Get payment statistics (Admin only)
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date filter
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date filter
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed, refunded]
+          description: Payment status filter
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      stats:
+                        type: object
+                        properties:
+                          total_payments:
+                            type: integer
+                            example: 150
+                          successful_payments:
+                            type: integer
+                            example: 142
+                          failed_payments:
+                            type: integer
+                            example: 5
+                          refunded_payments:
+                            type: integer
+                            example: 3
+                          total_revenue:
+                            type: number
+                            format: float
+                            example: 750000.00
+                          total_refunded:
+                            type: number
+                            format: float
+                            example: 15000.00
+                          avg_payment_amount:
+                            type: number
+                            format: float
+                            example: 5281.69
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /payments/recent:
+    get:
+      tags:
+        - Payments
+      summary: Get recent payments
+      description: Get recent payments (Admin only)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          description: Number of payments to retrieve
+      responses:
+        '200':
+          description: Recent payments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 10
+                  data:
+                    type: object
+                    properties:
+                      payments:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login
+
+  schemas:
+    # ==================== USER SCHEMAS ====================
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        email:
+          type: string
+          format: email
+          example: "juan.delacruz@example.com"
+        first_name:
+          type: string
+          example: "Juan"
+        last_name:
+          type: string
+          example: "Dela Cruz"
+        phone_number:
+          type: string
+          example: "+639171234567"
+        date_of_birth:
+          type: string
+          format: date
+          example: "1990-01-15"
+        driver_license_number:
+          type: string
+          example: "N01-12-345678"
+        driver_license_expiry:
+          type: string
+          format: date
+          example: "2027-12-31"
+        role:
+          type: string
+          enum: [customer, owner, admin]
+          example: "customer"
+        is_verified:
+          type: boolean
+          example: true
+        is_active:
+          type: boolean
+          example: true
+        profile_photo_url:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    VehicleOwner:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        business_name:
+          type: string
+          nullable: true
+        tax_id:
+          type: string
+          nullable: true
+        bank_account_number:
+          type: string
+          nullable: true
+        bank_name:
+          type: string
+          nullable: true
+        preferred_payout_method:
+          type: string
+          enum: [credit_card, debit_card]
+        total_earnings:
+          type: number
+          format: float
+          example: 125000.00
+        total_rentals:
+          type: integer
+          example: 45
+        average_rating:
+          type: number
+          format: float
+          example: 4.8
+        response_rate:
+          type: number
+          format: float
+          example: 98.5
+        is_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ==================== CAR SCHEMAS ====================
+    Car:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        make:
+          type: string
+          example: "Toyota"
+        model:
+          type: string
+          example: "Vios"
+        year:
+          type: integer
+          example: 2022
+        color:
+          type: string
+          example: "White"
+        license_plate:
+          type: string
+          example: "ABC-1234"
+        vin:
+          type: string
+          nullable: true
+        category_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+          example: "Sedan"
+        transmission:
+          type: string
+          enum: [automatic, manual]
+          example: "automatic"
+        fuel_type:
+          type: string
+          enum: [petrol, diesel, electric, hybrid]
+          example: "petrol"
+        seating_capacity:
+          type: integer
+          example: 5
+        daily_rate:
+          type: number
+          format: float
+          example: 1500.00
+        description:
+          type: string
+          example: "Fuel-efficient sedan perfect for city driving"
+        features:
+          type: array
+          items:
+            type: string
+          example: ["GPS", "Bluetooth", "Backup Camera"]
+        rules:
+          type: string
+          nullable: true
+        image_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+        home_branch_id:
+          type: string
+          format: uuid
+          nullable: true
+        branch_name:
+          type: string
+          example: "Manila Branch"
+        branch_city:
+          type: string
+          example: "Manila"
+        storage_option:
+          type: string
+          enum: [warehouse, owner_delivers]
+          example: "owner_delivers"
+        status:
+          type: string
+          enum: [pending_approval, approved, listed, unavailable, suspended]
+          example: "listed"
+        admin_notes:
+          type: string
+          nullable: true
+        rejection_reason:
+          type: string
+          nullable: true
+        total_bookings:
+          type: integer
+          example: 23
+        average_rating:
+          type: number
+          format: float
+          example: 4.7
+        owner_first_name:
+          type: string
+          example: "Maria"
+        owner_last_name:
+          type: string
+          example: "Santos"
+        owner_rating:
+          type: number
+          format: float
+          example: 4.8
+        owner_response_rate:
+          type: number
+          format: float
+          example: 95.0
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CarCreate:
+      type: object
+      required:
+        - make
+        - model
+        - year
+        - license_plate
+        - category_id
+        - transmission
+        - fuel_type
+        - seating_capacity
+        - daily_rate
+      properties:
+        make:
+          type: string
+          example: "Toyota"
+        model:
+          type: string
+          example: "Vios"
+        year:
+          type: integer
+          minimum: 1900
+          example: 2022
+        color:
+          type: string
+          example: "White"
+        license_plate:
+          type: string
+          example: "ABC-1234"
+        vin:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+        transmission:
+          type: string
+          enum: [automatic, manual]
+          example: "automatic"
+        fuel_type:
+          type: string
+          enum: [petrol, diesel, electric, hybrid]
+          example: "petrol"
+        seating_capacity:
+          type: integer
+          minimum: 1
+          maximum: 20
+          example: 5
+        daily_rate:
+          type: number
+          format: float
+          minimum: 0
+          example: 1500.00
+        description:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+          example: ["GPS", "Bluetooth"]
+        rules:
+          type: string
+        image_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+        home_branch_id:
+          type: string
+          format: uuid
+        storage_option:
+          type: string
+          enum: [warehouse, owner_delivers]
+          default: owner_delivers
+
+    CarUpdate:
+      type: object
+      properties:
+        make:
+          type: string
+        model:
+          type: string
+        year:
+          type: integer
+        color:
+          type: string
+        license_plate:
+          type: string
+        vin:
+          type: string
+        transmission:
+          type: string
+          enum: [automatic, manual]
+        fuel_type:
+          type: string
+          enum: [petrol, diesel, electric, hybrid]
+        seating_capacity:
+          type: integer
+        daily_rate:
+          type: number
+          format: float
+        description:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        rules:
+          type: string
+        image_urls:
+          type: array
+          items:
+            type: string
+        storage_option:
+          type: string
+          enum: [warehouse, owner_delivers]
+
+    # ==================== BOOKING SCHEMAS ====================
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        booking_reference:
+          type: string
+          example: "RE-20251101-ABC123"
+        customer_id:
+          type: string
+          format: uuid
+        car_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        pickup_date:
+          type: string
+          format: date
+          example: "2025-11-01"
+        return_date:
+          type: string
+          format: date
+          example: "2025-11-05"
+        total_days:
+          type: integer
+          example: 5
+        branch_id:
+          type: string
+          format: uuid
+        daily_rate:
+          type: number
+          format: float
+          example: 1500.00
+        subtotal:
+          type: number
+          format: float
+          example: 7500.00
+        platform_fee:
+          type: number
+          format: float
+          example: 750.00
+        total_amount:
+          type: number
+          format: float
+          example: 8250.00
+        payment_plan:
+          type: string
+          enum: [full, installment]
+          example: "full"
+        installment_months:
+          type: integer
+          nullable: true
+        monthly_payment:
+          type: number
+          format: float
+          nullable: true
+        status:
+          type: string
+          enum: [pending_payment, payment_confirmed, pending_owner_confirmation, confirmed, awaiting_vehicle_dropoff, ready_for_pickup, active, awaiting_return, returned, completed, cancelled, cancelled_with_refund]
+          example: "confirmed"
+        owner_dropoff_at:
+          type: string
+          format: date-time
+          nullable: true
+        customer_pickup_at:
+          type: string
+          format: date-time
+          nullable: true
+        customer_return_at:
+          type: string
+          format: date-time
+          nullable: true
+        owner_pickup_at:
+          type: string
+          format: date-time
+          nullable: true
+        actual_return_date:
+          type: string
+          format: date
+          nullable: true
+        days_late:
+          type: integer
+          example: 0
+        late_fee:
+          type: number
+          format: float
+          example: 0
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancellation_reason:
+          type: string
+          nullable: true
+        refund_amount:
+          type: number
+          format: float
+          example: 0
+        customer_notes:
+          type: string
+          nullable: true
+        admin_notes:
+          type: string
+          nullable: true
+        make:
+          type: string
+          example: "Toyota"
+        model:
+          type: string
+          example: "Vios"
+        year:
+          type: integer
+          example: 2022
+        license_plate:
+          type: string
+          example: "ABC-1234"
+        car_images:
+          type: array
+          items:
+            type: string
+        customer_first_name:
+          type: string
+          example: "Juan"
+        customer_last_name:
+          type: string
+          example: "Dela Cruz"
+        customer_email:
+          type: string
+          example: "juan@example.com"
+        customer_phone:
+          type: string
+          example: "+639171234567"
+        owner_first_name:
+          type: string
+          example: "Maria"
+        owner_last_name:
+          type: string
+          example: "Santos"
+        owner_email:
+          type: string
+          example: "maria@example.com"
+        owner_phone:
+          type: string
+          example: "+639181234567"
+        branch_name:
+          type: string
+          example: "Manila Branch"
+        branch_address:
+          type: string
+          example: "123 Rizal Avenue, Ermita"
+        branch_city:
+          type: string
+          example: "Manila"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BookingCreate:
+      type: object
+      required:
+        - car_id
+        - pickup_date
+        - return_date
+      properties:
+        car_id:
+          type: string
+          format: uuid
+        pickup_date:
+          type: string
+          format: date
+          example: "2025-11-01"
+        return_date:
+          type: string
+          format: date
+          example: "2025-11-05"
+        branch_id:
+          type: string
+          format: uuid
+          description: Optional, defaults to car's home branch
+        payment_plan:
+          type: string
+          enum: [full, installment]
+          default: full
+          example: "full"
+        installment_months:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Required if payment_plan is installment
+        customer_notes:
+          type: string
+          example: "I'll arrive at 2 PM"
+
+    # ==================== PAYMENT SCHEMAS ====================
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        booking_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: float
+          example: 8250.00
+        payment_method:
+          type: string
+          enum: [credit_card, debit_card]
+          example: "credit_card"
+        payment_plan:
+          type: string
+          enum: [full, installment]
+          example: "full"
+        installment_number:
+          type: integer
+          nullable: true
+        is_initial_payment:
+          type: boolean
+          example: true
+        card_last4:
+          type: string
+          example: "1234"
+        card_brand:
+          type: string
+          example: "Visa"
+        transaction_id:
+          type: string
+          example: "TXN-1698765432-A1B2C3D4"
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, refunded]
+          example: "completed"
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        refunded_amount:
+          type: number
+          format: float
+          example: 0
+        refunded_at:
+          type: string
+          format: date-time
+          nullable: true
+        refund_reason:
+          type: string
+          nullable: true
+        booking_reference:
+          type: string
+          example: "RE-20251101-ABC123"
+        customer_email:
+          type: string
+          example: "juan@example.com"
+        created_at:
+          type: string
+          format: date-time
+
+    # ==================== ERROR SCHEMAS ====================
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+
+    ValidationError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Validation failed"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "email"
+              message:
+                type: string
+                example: "Invalid email format"
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: "No token provided. Authorization denied."
+
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: "Access denied. Required role: owner"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
