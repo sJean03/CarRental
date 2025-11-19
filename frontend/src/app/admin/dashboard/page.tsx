@@ -10,11 +10,91 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Car as CarIcon, DollarSign, CreditCard, TrendingUp, Check, X } from 'lucide-react';
+import { Car as CarIcon, DollarSign, CreditCard, TrendingUp, Check, X, User, Clock, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatCurrencyFull } from '@/lib/utils/formatNumber';
 import { RejectCarModal } from '@/components/admin/RejectCarModal';
 import { DelistCarModal } from '@/components/admin/DelistCarModal';
+
+// Reject License Modal Component
+function RejectLicenseModal({ isOpen, onClose, onConfirm, userName }: any) {
+  const [reason, setReason] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const handleSubmit = () => {
+    if (!reason.trim()) {
+      toast.error('Please provide a rejection reason');
+      return;
+    }
+    onConfirm(reason, notes);
+    setReason('');
+    setNotes('');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+      <Card className="w-full max-w-md shadow-xl border-0">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-xl">Reject License Verification</CardTitle>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+            <X className="h-5 w-5" />
+          </button>
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Please provide a reason for rejecting this license verification request.
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Rejection Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 min-h-[100px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="e.g., Image is blurry, license is expired, information not readable..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Admin Notes <span className="text-gray-500 font-normal">(Optional)</span>
+            </label>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 min-h-[80px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Additional notes for internal reference..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleSubmit}
+              className="flex-1"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Reject License
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -32,6 +112,9 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTransmission, setSelectedTransmission] = useState<string | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [verificationRequests, setVerificationRequests] = useState<any[]>([]);
+  const [rejectLicenseModalOpen, setRejectLicenseModalOpen] = useState(false);
+  const [selectedVerification, setSelectedVerification] = useState<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== 'admin') {
@@ -70,6 +153,43 @@ export default function AdminDashboard() {
 
       // Fetch active listed cars for Carlisting tab (initial load)
       await fetchActiveCars({ status: 'listed', limit: 50 });
+
+      // Mock verification requests data
+      setVerificationRequests([
+        {
+          id: '1',
+          user_id: 'user-001',
+          user_name: 'Juan Pedro Dela Cruz',
+          user_email: 'juanpedro@example.com',
+          user_role: 'customer',
+          license_number: 'N01-12-345678',
+          license_image_url: 'https://th.bing.com/th/id/R.677e7166fbbfc64e659578a456b49087?rik=cTUSqc9jDQp5ew&riu=http%3a%2f%2fsun9-66.userapi.com%2fimpg%2fuqvnr7WY6zF1JsRulKtbhexdVlcdYGHeTR6L5Q%2fL_5uzXdl7C8.jpg%3fsize%3d1654x2019%26quality%3d95%26sign%3d1448e5aae984f7034a08ed3be87a2230%26type%3dalbum&ehk=rRFJzTbYhdVyib5Nk7gTaREinGoG%2fksK2nEV2JmiEgE%3d&risl=&pid=ImgRaw&r=0',
+          submitted_at: '2025-11-08T18:30:00Z',
+          status: 'pending',
+        },
+        {
+          id: '2',
+          user_id: 'user-002',
+          user_name: 'Marie Jumio',
+          user_email: 'marie.jumio@example.com',
+          user_role: 'owner',
+          license_number: 'N02-34-567890',
+          license_image_url: 'https://th.bing.com/th/id/R.677e7166fbbfc64e659578a456b49087?rik=cTUSqc9jDQp5ew&riu=http%3a%2f%2fsun9-66.userapi.com%2fimpg%2fuqvnr7WY6zF1JsRulKtbhexdVlcdYGHeTR6L5Q%2fL_5uzXdl7C8.jpg%3fsize%3d1654x2019%26quality%3d95%26sign%3d1448e5aae984f7034a08ed3be87a2230%26type%3dalbum&ehk=rRFJzTbYhdVyib5Nk7gTaREinGoG%2fksK2nEV2JmiEgE%3d&risl=&pid=ImgRaw&r=0',
+          submitted_at: '2025-11-18T17:15:00Z',
+          status: 'pending',
+        },
+        {
+          id: '3',
+          user_id: 'user-003',
+          user_name: 'Pedro Santos',
+          user_email: 'pedro.santos@example.com',
+          user_role: 'customer',
+          license_number: 'N03-56-789012',
+          license_image_url: 'https://th.bing.com/th/id/R.677e7166fbbfc64e659578a456b49087?rik=cTUSqc9jDQp5ew&riu=http%3a%2f%2fsun9-66.userapi.com%2fimpg%2fuqvnr7WY6zF1JsRulKtbhexdVlcdYGHeTR6L5Q%2fL_5uzXdl7C8.jpg%3fsize%3d1654x2019%26quality%3d95%26sign%3d1448e5aae984f7034a08ed3be87a2230%26type%3dalbum&ehk=rRFJzTbYhdVyib5Nk7gTaREinGoG%2fksK2nEV2JmiEgE%3d&risl=&pid=ImgRaw&r=0',
+          submitted_at: '2025-11-17T16:45:00Z',
+          status: 'pending',
+        },
+      ]);
     } catch (error) {
       toast.error('Failed to load dashboard data');
     } finally {
@@ -147,6 +267,34 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleApproveVerification = async (requestId: string) => {
+    try {
+      // Mock API call - replace with actual API
+      toast.success('User verification approved');
+      setVerificationRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (error) {
+      toast.error('Failed to approve verification');
+    }
+  };
+
+  const handleRejectVerification = async (reason: string, notes?: string) => {
+    if (!selectedVerification) return;
+    try {
+      // Mock API call - replace with actual API
+      toast.success('License verification rejected');
+      setVerificationRequests(prev => prev.filter(req => req.id !== selectedVerification.id));
+      setRejectLicenseModalOpen(false);
+      setSelectedVerification(null);
+    } catch (error) {
+      toast.error('Failed to reject verification');
+    }
+  };
+
+  const openRejectLicenseModal = (verification: any) => {
+    setSelectedVerification(verification);
+    setRejectLicenseModalOpen(true);
+  };
+
   if (!isAuthenticated || !user) {
     return null;
   }
@@ -215,6 +363,14 @@ export default function AdminDashboard() {
       <Tabs defaultValue="approvals" className="space-y-6">
         <TabsList>
           <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
+          <TabsTrigger value="verification" className="relative">
+            License Verification
+            {verificationRequests.length > 0 && (
+              <span className="ml-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {verificationRequests.length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="delist">Delist Pending Approvals</TabsTrigger>
           <TabsTrigger value="carlisting">Carlisting</TabsTrigger>
           <TabsTrigger value="payments">Recent Payments</TabsTrigger>
@@ -307,6 +463,99 @@ export default function AdminDashboard() {
                           variant="destructive"
                           onClick={() => openRejectModal(car)}
                           className="flex-1"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="verification" className="space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertCircle className="h-5 w-5 text-yellow-600" />
+            <h2 className="text-lg font-semibold">Pending Verification ({verificationRequests.length})</h2>
+          </div>
+
+          {verificationRequests.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <p className="text-gray-600">No pending verification requests</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {verificationRequests.map((request) => (
+                <Card key={request.id} className="border-l-4 border-l-yellow-400">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gray-100 rounded-full p-2">
+                          <User className="h-5 w-5 text-gray-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{request.user_name}</CardTitle>
+                          <CardDescription className="flex flex-col gap-1 mt-1">
+                            <span>{request.user_email}</span>
+                            <span className="inline-flex items-center gap-1">
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded capitalize">
+                                {request.user_role}
+                              </span>
+                              <span className="text-xs">• Submitted: {new Date(request.submitted_at).toLocaleString()}</span>
+                            </span>
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Pending
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">License Number</p>
+                        <p className="text-base font-semibold">{request.license_number}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-3">License Images:</p>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-xs text-gray-600 mb-2">Front & Back</p>
+                          <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
+                            <img
+                              src={request.license_image_url}
+                              alt="License Front"
+                              className="w-full h-64 object-contain cursor-pointer hover:opacity-90 transition"
+                              onClick={() => window.open(request.license_image_url, '_blank')}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2 text-center">
+                            Click images to view full size
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-4 border-t">
+                        <Button
+                          size="default"
+                          className="flex-1 bg-gray-900 hover:bg-gray-800"
+                          onClick={() => handleApproveVerification(request.id)}
+                        >
+                          <Check className="h-4 w-4 mr-2" />
+                          Approve & Verify User
+                        </Button>
+                        <Button
+                          size="default"
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={() => openRejectLicenseModal(request)}
                         >
                           <X className="h-4 w-4 mr-2" />
                           Reject
@@ -539,6 +788,17 @@ export default function AdminDashboard() {
         onClose={closeDelistModal}
         onConfirm={handleDelistConfirm}
         carName={selectedCar ? `${selectedCar.year} ${selectedCar.make} ${selectedCar.model}` : ''}
+      />
+
+      {/* Reject License Modal */}
+      <RejectLicenseModal
+        isOpen={rejectLicenseModalOpen}
+        onClose={() => {
+          setRejectLicenseModalOpen(false);
+          setSelectedVerification(null);
+        }}
+        onConfirm={handleRejectVerification}
+        userName={selectedVerification?.user_name || ''}
       />
     </div>
   );
