@@ -53,6 +53,7 @@ const register = async (req, res, next) => {
     // Generate token
     const token = generateToken(user);
 
+    // Send response with success modal data
     res.status(201).json({
       success: true,
       message: 'Registration successful',

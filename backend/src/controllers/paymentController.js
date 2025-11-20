@@ -67,7 +67,8 @@ const processPayment = async (req, res, next) => {
       if (!hasDownPayment) {
         // This is the 20% down payment
         isDownPayment = true;
-        paymentAmount = booking.down_payment_amount;
+        // DB column is named `downpayment` (see database/init.sql)
+        paymentAmount = booking.downpayment;
       } else {
         // This is the remaining 80% balance (paid at pickup)
         isRemainingBalance = true;

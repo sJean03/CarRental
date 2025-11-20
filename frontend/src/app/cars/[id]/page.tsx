@@ -7,7 +7,6 @@ import { carsApi } from '@/lib/api/cars';
 import { bookingsApi } from '@/lib/api/bookings';
 import { Car } from '@/lib/api/types';
 import { useAuthStore } from '@/lib/store/authStore';
-import { PLATFORM_FEE_PERCENTAGE } from '@/lib/utils/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Star, Users, Gauge, Fuel, MapPin, Shield, AlertCircle } from 'lucide-react';
+import { Star, Users, Gauge, Fuel, MapPin, Shield, AlertCircle, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { addDays, format } from 'date-fns';
 
@@ -66,19 +65,31 @@ export default function CarDetailPage() {
         setHasActiveBooking(!!activeBooking);
       }
     } catch (error) {
-      // Silently fail - user can still try to book
       console.error('Failed to check active bookings:', error);
     }
   };
 
-  const calculateTotal = () => {
-    if (!car || !dateRange?.from || !dateRange?.to) return 0;
+  const calculatePricing = () => {
+    if (!car || !dateRange?.from || !dateRange?.to) return null;
+    
     const days = Math.ceil(
       (dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)
     ) + 1;
+    
     const subtotal = car.daily_rate * days;
-    const platformFee = subtotal * (PLATFORM_FEE_PERCENTAGE / 100);
-    return subtotal + platformFee;
+    const platformFee = subtotal * 0.02; // 2% FIXED
+    const totalAmount = subtotal + platformFee;
+    const downpayment = totalAmount * 0.20;
+    const remainingBalance = totalAmount - downpayment;
+
+    return {
+      days,
+      subtotal,
+      platformFee,
+      totalAmount,
+      downpayment,
+      remainingBalance
+    };
   };
 
   const handleBookNow = async () => {
@@ -93,7 +104,6 @@ export default function CarDetailPage() {
       return;
     }
 
-    // Safety check: warn if user already has an active booking for this car
     if (hasActiveBooking) {
       const confirmed = window.confirm(
         'You already have an active booking for this car. Are you sure you want to create another booking?'
@@ -149,18 +159,16 @@ export default function CarDetailPage() {
   }
 
   const imageUrl = car.image_urls?.[0] || '/images/car-placeholder.jpg';
+  const pricing = calculatePricing();
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Car Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Car Image */}
           <div className="relative h-96 w-full rounded-lg overflow-hidden">
             <Image src={imageUrl} alt={`${car.make} ${car.model}`} fill className="object-cover" />
           </div>
 
-          {/* Car Info */}
           <div>
             <div className="flex justify-between items-start mb-4">
               <div>
@@ -197,7 +205,6 @@ export default function CarDetailPage() {
 
             <Separator className="my-6" />
 
-            {/* Description */}
             {car.description && (
               <>
                 <h2 className="text-xl font-semibold mb-3">Description</h2>
@@ -205,7 +212,6 @@ export default function CarDetailPage() {
               </>
             )}
 
-            {/* Features */}
             {car.features && car.features.length > 0 && (
               <>
                 <h2 className="text-xl font-semibold mb-3">Features</h2>
@@ -220,7 +226,6 @@ export default function CarDetailPage() {
               </>
             )}
 
-            {/* Rules */}
             {car.rules && (
               <>
                 <h2 className="text-xl font-semibold mb-3">Rental Rules</h2>
@@ -230,7 +235,6 @@ export default function CarDetailPage() {
           </div>
         </div>
 
-        {/* Right Column - Booking Card */}
         <div className="lg:col-span-1">
           <Card className="sticky top-4">
             <CardHeader>
@@ -251,45 +255,46 @@ export default function CarDetailPage() {
                 />
               </div>
 
-              {dateRange?.from && dateRange?.to && (
-                <div className="space-y-2 p-4 bg-gray-50 rounded-lg">
+              {pricing && dateRange?.from && dateRange?.to && (
+                <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
                   <div className="flex justify-between text-sm">
                     <span>
-                      ₱{car.daily_rate.toLocaleString()} x{' '}
-                      {Math.ceil(
-                        (dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)
-                      ) + 1}{' '}
-                      days
+                      ₱{car.daily_rate.toLocaleString()} x {pricing.days} days
                     </span>
-                    <span>
-                      ₱
-                      {(
-                        car.daily_rate *
-                        (Math.ceil(
-                          (dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)
-                        ) +
-                          1)
-                      ).toLocaleString()}
-                    </span>
+                    <span>₱{pricing.subtotal.toLocaleString()}</span>
                   </div>
+                  
                   <div className="flex justify-between text-sm">
                     <span>Platform fee (2%)</span>
-                    <span>
-                      ₱
-                      {(
-                        car.daily_rate *
-                        (Math.ceil(
-                          (dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)
-                        ) +
-                          1) *
-                        (PLATFORM_FEE_PERCENTAGE / 100)
-                      ).toLocaleString()}
-                    </span>
+                    <span>₱{pricing.platformFee.toLocaleString()}</span>
                   </div>
+                  
                   <Separator />
-                  <div className="flex justify-between font-bold">
-                    <span>Total</span>
-                    <span>₱{calculateTotal().toLocaleString()}</span>
+                  
+                  <div className="flex justify-between font-bold text-base">
+                    <span>Total Amount</span>
+                    <span>₱{pricing.totalAmount.toLocaleString()}</span>
+                  </div>
+
+                  <Separator />
+
+                  <div className="bg-blue-50 rounded p-3 border border-blue-200 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs text-blue-800 font-medium">Payment Plan</span>
+                    </div>
+                    
+                    <div className="ml-6 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="font-semibold">Pay Now (20%)</span>
+                        <span className="font-bold text-green-600">₱{pricing.downpayment.toLocaleString()}</span>
+                      </div>
+                      
+                      <div className="flex justify-between text-gray-600">
+                        <span>Pay After Rental (80%)</span>
+                        <span>₱{pricing.remainingBalance.toLocaleString()}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -298,7 +303,7 @@ export default function CarDetailPage() {
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    You already have an active booking for this car. Booking again may create a duplicate.
+                    You already have an active booking for this car.
                   </AlertDescription>
                 </Alert>
               )}
@@ -313,7 +318,7 @@ export default function CarDetailPage() {
               </Button>
 
               <p className="text-xs text-gray-500 text-center">
-                You won't be charged yet
+                Only ₱{pricing?.downpayment.toLocaleString()} will be charged now
               </p>
             </CardContent>
           </Card>

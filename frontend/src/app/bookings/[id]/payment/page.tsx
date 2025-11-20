@@ -16,6 +16,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const paymentSchema = z.object({
@@ -120,7 +122,7 @@ export default function PaymentPage() {
       });
 
       if (response.success) {
-        toast.success('Payment successful!');
+        toast.success('Downpayment successful!');
         router.push('/dashboard');
       }
     } catch (error: any) {
@@ -139,11 +141,23 @@ export default function PaymentPage() {
     );
   }
 
+  // Calculate downpayment (20%) and remaining (80%)
+  const downpayment = parseFloat((booking.total_amount * 0.20).toFixed(2));
+  const remainingBalance = parseFloat((booking.total_amount - downpayment).toFixed(2));
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <h1 className="text-3xl font-bold mb-8">Complete Your Payment</h1>
+      <h1 className="text-3xl font-bold mb-8">Complete Your Downpayment</h1>
 
       <div className="grid gap-6">
+        {/* Payment Plan Info Alert */}
+        <Alert className="bg-blue-50 border-blue-200">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-900">
+            <strong>Payment Plan:</strong> Pay 20% downpayment now, and the remaining 80% after you complete your rental.
+          </AlertDescription>
+        </Alert>
+
         {/* Booking Summary */}
         <Card>
           <CardHeader>
@@ -177,19 +191,57 @@ export default function PaymentPage() {
 
             <Separator />
 
-            <div className="space-y-2">
+            {/* Price Breakdown */}
+            <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span>Subtotal</span>
-                <span>₱{booking.subtotal.toLocaleString()}</span>
+                <span>Rental Subtotal</span>
+                <span>₱{booking.subtotal?.toLocaleString() || '0.00'}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Platform Fee</span>
-                <span>₱{booking.platform_fee.toLocaleString()}</span>
+                <span>Platform Fee (2%)</span>
+                <span>₱{booking.platform_fee?.toLocaleString() || '0.00'}</span>
               </div>
+              
               <Separator />
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span>₱{booking.total_amount.toLocaleString()}</span>
+              
+              <div className="flex justify-between font-bold text-base">
+                <span>Total Amount</span>
+                <span>₱{booking.total_amount?.toLocaleString() || '0.00'}</span>
+              </div>
+            </div>
+
+            {/* Payment Schedule */}
+            <Separator />
+            
+            <div className="space-y-3 bg-gray-50 rounded-lg p-4">
+              <p className="font-semibold text-base mb-2">Payment Schedule</p>
+              
+              <div className="space-y-2">
+                {/* Downpayment */}
+                <div className="flex items-start gap-3 p-3 bg-white rounded border-2 border-green-500">
+                  <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">Pay Now (20%)</p>
+                    <p className="text-xs text-gray-600">Downpayment to secure your booking</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-green-600">₱{downpayment.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {/* Remaining Balance */}
+                <div className="flex items-start gap-3 p-3 bg-white rounded border border-gray-300">
+                  <div className="w-5 h-5 rounded-full border-2 border-gray-400 mt-0.5 flex-shrink-0 flex items-center justify-center">
+                    <span className="text-xs text-gray-400">2</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">Pay After Rental (80%)</p>
+                    <p className="text-xs text-gray-600">Complete payment when you return the car</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-700">₱{remainingBalance.toLocaleString()}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -199,7 +251,7 @@ export default function PaymentPage() {
         <Card>
           <CardHeader>
             <CardTitle>Payment Information</CardTitle>
-            <CardDescription>This is a mock payment system</CardDescription>
+            <CardDescription>Enter your card details for the 20% downpayment</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -345,7 +397,7 @@ export default function PaymentPage() {
                   size="lg" 
                   disabled={isProcessing || !termsAccepted}
                 >
-                  {isProcessing ? 'Processing...' : `Proceed to Payment: ₱${booking.total_amount.toLocaleString()}`}
+                  {isProcessing ? 'Processing...' : `Pay Downpayment: ₱${downpayment.toLocaleString()}`}
                 </Button>
               </form>
             </Form>
@@ -371,16 +423,16 @@ export default function PaymentPage() {
             </section>
 
             <section>
-              <h3 className="font-semibold text-base mb-2">2. Booking and Payment</h3>
+              <h3 className="font-semibold text-base mb-2">2. Payment Terms</h3>
               <p className="text-gray-700">
-                All bookings are subject to vehicle availability. Payment must be completed in full before the rental period begins. We accept credit and debit cards as specified in the payment form.
+                A 20% downpayment is required to secure your booking. The remaining 80% is due upon completion of your rental. All payments must be completed as scheduled.
               </p>
             </section>
 
             <section>
               <h3 className="font-semibold text-base mb-2">3. Cancellation Policy</h3>
               <p className="text-gray-700">
-                Cancellations made more than 48 hours before the pickup date will receive a full refund minus a processing fee. Cancellations made within 48 hours are non-refundable.
+                Cancellations made more than 48 hours before the pickup date will receive a full refund of your downpayment. Cancellations made within 48 hours are non-refundable.
               </p>
             </section>
 
@@ -408,7 +460,7 @@ export default function PaymentPage() {
             <section>
               <h3 className="font-semibold text-base mb-2">7. Platform Fees</h3>
               <p className="text-gray-700">
-                A platform service fee is charged to facilitate the booking and ensure quality service. This fee is non-refundable and covers operational costs, customer support, and platform maintenance.
+                A 2% platform service fee is charged to facilitate the booking and ensure quality service. This fee covers operational costs, customer support, and platform maintenance.
               </p>
             </section>
           </div>

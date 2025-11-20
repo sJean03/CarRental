@@ -1,8 +1,7 @@
 -- ============================================
 -- RENTEASE MARKETPLACE - COMPREHENSIVE SAMPLE DATA
 -- Turo-Style P2P Car Rental Platform
--- Simulating 1 Week of Operations
--- Updated: October 27, 2025
+-- UPDATED: Add Downpayment Columns
 -- ============================================
 
 -- Enable UUID extension
@@ -193,7 +192,7 @@ CREATE TABLE car_availability (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Bookings (Rentals)
+-- Bookings (Rentals) - UPDATED WITH DOWNPAYMENT COLUMNS
 CREATE TABLE bookings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_reference VARCHAR(50) UNIQUE NOT NULL,
@@ -212,16 +211,16 @@ CREATE TABLE bookings (
     -- Pricing
     daily_rate DECIMAL(10,2) NOT NULL, -- Snapshot of rate at booking time
     subtotal DECIMAL(10,2) NOT NULL, -- daily_rate * total_days
-    platform_fee DECIMAL(10,2) NOT NULL, -- 10% of subtotal
+    platform_fee DECIMAL(10,2) NOT NULL, -- 2% of subtotal (FIXED)
     total_amount DECIMAL(10,2) NOT NULL, -- subtotal + platform_fee
 
-    -- Payment
+    -- Payment - UPDATED: Added downpayment columns
     payment_plan payment_plan_type DEFAULT 'downpayment',
     installment_months INT, -- If payment_plan = 'installment'
     monthly_payment DECIMAL(10,2), -- If installment
-    down_payment_amount DECIMAL(10,2), -- 20% down payment (if payment_plan = 'downpayment')
-    remaining_balance DECIMAL(10,2), -- 80% remaining balance (if payment_plan = 'downpayment')
-    remaining_balance_paid BOOLEAN DEFAULT false, -- Tracks if remaining balance paid at pickup
+    downpayment DECIMAL(10,2), -- NEW: 20% down payment
+    remaining_balance DECIMAL(10,2), -- NEW: 80% remaining balance
+    remaining_balance_paid BOOLEAN DEFAULT false, -- NEW: Track if remaining balance paid
 
     -- Status
     status booking_status DEFAULT 'pending_payment',
@@ -291,7 +290,7 @@ CREATE TABLE owner_payouts (
 
     -- Calculation
     rental_amount DECIMAL(10,2) NOT NULL, -- Subtotal from booking
-    platform_fee DECIMAL(10,2) NOT NULL, -- 10%
+    platform_fee DECIMAL(10,2) NOT NULL, -- 2%
     warehouse_fee DECIMAL(10,2) DEFAULT 0, -- If stored
     late_fee_owner_share DECIMAL(10,2) DEFAULT 0, -- Owner gets 50% of late fees
     damage_deduction DECIMAL(10,2) DEFAULT 0,
@@ -438,15 +437,15 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER calculate_days BEFORE INSERT OR UPDATE ON bookings
     FOR EACH ROW EXECUTE FUNCTION calculate_booking_days();
 
--- Calculate pricing
+-- Calculate pricing with 2% platform fee and downpayment
 CREATE OR REPLACE FUNCTION calculate_booking_pricing()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Calculate subtotal
     NEW.subtotal := NEW.daily_rate * NEW.total_days;
 
-    -- Platform fee (10%)
-    NEW.platform_fee := ROUND(NEW.subtotal * 0.10, 2);
+    -- Platform fee (2% - FIXED)
+    NEW.platform_fee := ROUND(NEW.subtotal * 0.02, 2);
 
     -- Total amount
     NEW.total_amount := NEW.subtotal + NEW.platform_fee;
@@ -458,8 +457,8 @@ BEGIN
 
     -- If downpayment, calculate down payment (20%) and remaining balance (80%)
     IF NEW.payment_plan = 'downpayment' THEN
-        NEW.down_payment_amount := ROUND(NEW.total_amount * 0.20, 2);
-        NEW.remaining_balance := NEW.total_amount - NEW.down_payment_amount;
+        NEW.downpayment := ROUND(NEW.total_amount * 0.20, 2);
+        NEW.remaining_balance := NEW.total_amount - NEW.downpayment;
     END IF;
 
     RETURN NEW;

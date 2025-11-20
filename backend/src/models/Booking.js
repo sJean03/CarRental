@@ -7,42 +7,53 @@ class Booking {
    * Create a new booking
    */
   static async create(customerId, bookingData) {
-    const {
-      car_id,
-      owner_id,
-      pickup_date,
-      return_date,
-      branch_id,
-      daily_rate,
-      payment_plan = 'full',
-      installment_months,
-      customer_notes
-    } = bookingData;
-
-    // Calculate days and pricing
-    const total_days = calculateDaysBetween(pickup_date, return_date);
-    const pricing = calculateBookingPricing(daily_rate, total_days, payment_plan, installment_months);
-
-    const query = `
-      INSERT INTO bookings (
-        customer_id, car_id, owner_id, pickup_date, return_date,
-        total_days, branch_id, daily_rate, subtotal, platform_fee,
-        total_amount, payment_plan, installment_months, monthly_payment,
+    try {
+      const {
+        car_id,
+        owner_id,
+        pickup_date,
+        return_date,
+        branch_id,
+        daily_rate,
+        payment_plan = 'downpayment',
+        installment_months,
         customer_notes
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      RETURNING *
-    `;
+      } = bookingData;
 
-    const values = [
-      customerId, car_id, owner_id, pickup_date, return_date,
-      total_days, branch_id, daily_rate, pricing.subtotal, pricing.platformFee,
-      pricing.totalAmount, payment_plan, installment_months, pricing.monthlyPayment,
-      customer_notes
-    ];
+      // Calculate days and pricing
+      const total_days = calculateDaysBetween(pickup_date, return_date);
+      const pricing = calculateBookingPricing(daily_rate, total_days, payment_plan, installment_months);
 
-    const result = await db.query(query, values);
-    return result.rows[0];
+      console.log('Booking pricing calculated:', pricing);
+
+      const query = `
+        INSERT INTO bookings (
+          customer_id, car_id, owner_id, pickup_date, return_date,
+          total_days, branch_id, daily_rate, subtotal, platform_fee,
+          total_amount, downpayment, remaining_balance, payment_plan, 
+          installment_months, monthly_payment, customer_notes
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING *
+      `;
+
+      const values = [
+        customerId, car_id, owner_id, pickup_date, return_date,
+        total_days, branch_id, daily_rate, pricing.subtotal, pricing.platformFee,
+        pricing.totalAmount, pricing.downpayment, pricing.remainingBalance, 
+        payment_plan, installment_months, pricing.monthlyPayment,
+        customer_notes
+      ];
+
+      console.log('Executing booking insert with values:', values);
+      const result = await db.query(query, values);
+      console.log('Booking created successfully:', result.rows[0]);
+      
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error creating booking:', error.message, error.code);
+      throw error;
+    }
   }
 
   /**
@@ -158,7 +169,6 @@ class Booking {
     const values = [newStatus, bookingId];
     let paramCount = 3;
 
-    // Add timestamp fields based on status
     const statusTimestamps = {
       'awaiting_vehicle_dropoff': 'owner_dropoff_at',
       'ready_for_pickup': 'customer_pickup_at',
@@ -170,7 +180,6 @@ class Booking {
       updates.push(`${statusTimestamps[newStatus]} = CURRENT_TIMESTAMP`);
     }
 
-    // Add any additional fields
     Object.keys(additionalData).forEach(key => {
       updates.push(`${key} = $${paramCount}`);
       values.push(additionalData[key]);
@@ -229,7 +238,7 @@ class Booking {
   }
 
   /**
-   * Get upcoming bookings (for reminders)
+   * Get upcoming bookings
    */
   static async getUpcomingBookings(daysAhead = 1) {
     const query = `
@@ -249,7 +258,7 @@ class Booking {
   }
 
   /**
-   * Get active bookings (currently in use)
+   * Get active bookings
    */
   static async getActiveBookings() {
     const query = `
@@ -267,7 +276,7 @@ class Booking {
   }
 
   /**
-   * Get overdue bookings (past return date)
+   * Get overdue bookings
    */
   static async getOverdueBookings() {
     const query = `
@@ -323,8 +332,7 @@ class Booking {
   }
 
   /**
-   * Get bookings ready to transition to 'active' status
-   * (confirmed bookings where pickup date/time has arrived)
+   * Get bookings ready for active
    */
   static async getBookingsReadyForActive(bufferMinutes = 15) {
     const query = `
@@ -344,8 +352,7 @@ class Booking {
   }
 
   /**
-   * Get bookings ready to transition to 'returned' status
-   * (active bookings where return date/time has arrived)
+   * Get bookings ready for return
    */
   static async getBookingsReadyForReturn(bufferMinutes = 15) {
     const query = `
@@ -368,7 +375,7 @@ class Booking {
   }
 
   /**
-   * Calculate late fee for a booking
+   * Calculate late fee
    */
   static async calculateLateFee(bookingId, ratePerDay = 0.20, maxPercentage = 1.0) {
     const booking = await this.findById(bookingId);
@@ -379,8 +386,6 @@ class Booking {
 
     const returnDate = new Date(booking.return_date);
     const currentDate = new Date();
-
-    // Calculate days late (only count full days)
     const msPerDay = 1000 * 60 * 60 * 24;
     const daysLate = Math.floor((currentDate - returnDate) / msPerDay);
 
@@ -388,29 +393,24 @@ class Booking {
       return { daysLate: 0, lateFee: 0 };
     }
 
-    // Calculate late fee
     const dailyRate = parseFloat(booking.daily_rate);
     const lateFeePerDay = dailyRate * ratePerDay;
     let lateFee = lateFeePerDay * daysLate;
-
-    // Apply maximum late fee cap
     const maxLateFee = parseFloat(booking.total_amount) * maxPercentage;
     lateFee = Math.min(lateFee, maxLateFee);
 
     return {
       daysLate,
-      lateFee: Math.round(lateFee * 100) / 100, // Round to 2 decimal places
+      lateFee: Math.round(lateFee * 100) / 100,
       dailyRate,
       lateFeePerDay: Math.round(lateFeePerDay * 100) / 100
     };
   }
 
   /**
-   * Get bookings by status for lifecycle monitoring
+   * Get bookings by status
    */
   static async getBookingsByStatus(statuses = []) {
-    const placeholders = statuses.map((_, idx) => `$${idx + 1}`).join(', ');
-
     const query = `
       SELECT
         b.*,
@@ -429,7 +429,7 @@ class Booking {
   }
 
   /**
-   * Get lifecycle statistics for admin dashboard
+   * Get lifecycle stats
    */
   static async getLifecycleStats() {
     const query = `
